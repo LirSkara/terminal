@@ -103,6 +103,15 @@ class ApiService {
   }
 
   // ===================
+  // ПОЛЬЗОВАТЕЛИ
+  // ===================
+
+  async getWaiters(): Promise<User[]> {
+    const response = await this.api.get<User[]>('/users/waiters')
+    return response.data
+  }
+
+  // ===================
   // СТОЛИКИ
   // ===================
 

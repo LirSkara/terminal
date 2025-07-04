@@ -67,10 +67,6 @@
       <!-- Форма входа поверх фона -->
       <div class="login-form-card">
         <div class="form-content">
-          <div class="form-header">
-            <h2 class="form-title">Добро пожаловать</h2>
-            <p class="form-subtitle">Войдите в систему</p>
-          </div>
 
           <!-- Переключатель режимов входа -->
           <div class="login-mode-switcher">
@@ -98,36 +94,42 @@
           <div class="forms-container">
             <!-- Форма входа по PIN -->
             <div v-if="loginMode === 'pin'" class="login-form">
-              <form @submit.prevent="handlePinLogin">
+              <div>
                 <!-- Поле логина -->
                 <div class="form-group">
-                  <label class="form-label">Логин пользователя</label>
                   <div class="input-group">
                     <div class="input-icon">
                       <i class="bi bi-person-fill"></i>
                     </div>
-                    <input
+                    <select
                       v-model="pinUsername"
-                      type="text"
-                      class="form-control"
-                      placeholder="Введите логин"
+                      class="form-control form-select"
+                      :disabled="isLoadingWaiters"
                       required
-                      autocomplete="username"
-                    />
+                    >
+                      <option value="" disabled>
+                        {{ isLoadingWaiters ? 'Загрузка...' : `Выберите официанта (${waiters.length})` }}
+                      </option>
+                      <option
+                        v-for="waiter in waiters"
+                        :key="waiter.id"
+                        :value="waiter.id"
+                      >
+                        {{ waiter.name }}
+                      </option>
+                    </select>
                   </div>
                 </div>
 
                 <!-- PIN дисплей -->
                 <div class="form-group">
-                  <label class="form-label">PIN-код</label>
                   <div class="pin-display">
                     <div
-                      v-for="(digit, index) in pinDisplay"
+                      v-for="(filled, index) in pinDisplay"
                       :key="index"
                       class="pin-digit"
-                      :class="{ filled: digit }"
+                      :class="{ filled: filled }"
                     >
-                      {{ digit || '' }}
                     </div>
                   </div>
                 </div>
@@ -191,18 +193,7 @@
                     </button>
                   </div>
                 </div>
-
-                <!-- Кнопка входа -->
-                <button
-                  type="submit"
-                  class="btn-submit"
-                  :disabled="!pinUsername || pinCode.length < 4 || isLoading"
-                >
-                  <span v-if="isLoading" class="spinner"></span>
-                  <i v-else class="bi bi-box-arrow-in-right"></i>
-                  <span>{{ isLoading ? 'Вход...' : 'Войти' }}</span>
-                </button>
-              </form>
+              </div>
             </div>
 
             <!-- Форма входа по паролю -->
@@ -271,10 +262,11 @@
             <span>{{ error }}</span>
           </div>
 
-          <!-- Подсказка для демо -->
-          <div class="demo-hint">
-            <p><strong>Для тестирования:</strong></p>
-            <p>Логин: <code>admin</code>, Пароль: <code>admin</code></p>
+          <!-- Отладочная информация (только в dev режиме) -->
+          <div v-if="isDev && waiters.length === 0" class="debug-info">
+            <small class="text-muted">
+              Нет доступных официантов. Проверьте подключение к серверу.
+            </small>
           </div>
         </div>
       </div>
@@ -293,15 +285,19 @@ const route = useRoute()
 const authStore = useAuthStore()
 
 // Состояние формы
-const loginMode = ref<'pin' | 'password'>('password')
+const loginMode = ref<'pin' | 'password'>('pin')
 const pinCode = ref('')
 const pinUsername = ref('')
-const username = ref('admin')
-const password = ref('admin')
+const username = ref('')
+const password = ref('')
 const showPassword = ref(false)
 const isLoading = ref(false)
 const error = ref('')
 const appVersion = ref('1.0.0')
+
+// Список официантов (загружается с сервера)
+const waiters = ref<Array<{ id: string; name: string; pin?: string }>>([])
+const isLoadingWaiters = ref(false)
 
 // Состояние соединения
 const isConnected = ref(false)
@@ -310,14 +306,14 @@ const connectionError = ref('')
 // PIN-клавиатура
 const pinDisplay = computed(() => {
   const digits = pinCode.value.split('')
-  const maxLength = 6
+  const maxLength = 6 // всегда 6 индикаторов
 
-  // Заполняем массив точками для пустых позиций
+  // Заполняем массив индикаторами заполнения
   while (digits.length < maxLength) {
     digits.push('')
   }
 
-  return digits.map(digit => digit ? '•' : '')
+  return digits.map(digit => digit ? true : false)
 })
 
 // Состояние соединения
@@ -345,10 +341,28 @@ const connectionText = computed(() => {
   }
 })
 
+// Проверка dev режима
+const isDev = computed(() => import.meta.env.DEV)
+
 // Методы PIN-клавиатуры
 const addPinDigit = (digit: string) => {
   if (pinCode.value.length < 6) {
     pinCode.value += digit
+
+    // Проверяем, нужен ли автоматический вход
+    if (pinUsername.value.trim()) {
+      const selectedWaiter = waiters.value.find(w => w.id === pinUsername.value)
+      const expectedPinLength = selectedWaiter?.pin?.length || 6
+
+      // Автоматический вход при достижении длины PIN выбранного официанта
+      if (pinCode.value.length === expectedPinLength) {
+        handlePinLogin()
+      }
+      // Или при заполнении максимальной длины (6 цифр)
+      else if (pinCode.value.length === 6) {
+        handlePinLogin()
+      }
+    }
   }
 }
 
@@ -363,12 +377,22 @@ const clearAllPin = () => {
 // Обработчики входа
 const handlePinLogin = async () => {
   if (!pinUsername.value.trim()) {
-    error.value = 'Введите логин'
+    error.value = 'Выберите официанта'
     return
   }
 
+  // Находим выбранного официанта для проверки длины PIN
+  const selectedWaiter = waiters.value.find(w => w.id === pinUsername.value)
+  const expectedPinLength = selectedWaiter?.pin?.length || 4 // по умолчанию 4 цифры
+
   if (pinCode.value.length < 4) {
     error.value = 'PIN-код должен содержать минимум 4 цифры'
+    return
+  }
+
+  // Если введено меньше цифр, чем ожидается для данного официанта, и это не максимум (6)
+  if (pinCode.value.length < expectedPinLength && pinCode.value.length < 6) {
+    // Не выполняем вход, ждем еще цифр
     return
   }
 
@@ -414,7 +438,6 @@ const handlePasswordLogin = async () => {
 // Проверка соединения с сервером
 const checkConnection = async () => {
   const apiUrl = apiService.getApiUrl()
-  console.log('Проверка соединения с:', apiUrl + '/health')
 
   try {
     // Простая проверка доступности API с таймаутом
@@ -434,40 +457,55 @@ const checkConnection = async () => {
     if (response.ok) {
       isConnected.value = true
       connectionError.value = ''
-      try {
-        await response.json()
-        console.log('Соединение с сервером установлено')
-      } catch {
-        console.log('Сервер ответил без JSON, но соединение установлено')
-      }
     } else {
-      console.warn('Сервер ответил с ошибкой:', response.status)
       isConnected.value = false
       connectionError.value = `HTTP ${response.status}`
     }
   } catch (error) {
     const errorMessage = error instanceof Error ? error.message : 'Неизвестная ошибка'
-    console.warn('Ошибка подключения к серверу:', errorMessage)
     isConnected.value = false
     connectionError.value = errorMessage
+  }
+}
 
-    // Дополнительная диагностика
-    if (error instanceof Error) {
-      if (error.name === 'AbortError') {
-        console.warn('Превышен таймаут подключения к серверу (5 сек)')
-      } else if (error.message.includes('CORS')) {
-        console.warn('Ошибка CORS. Сервер не разрешает запросы с текущего домена')
-      } else if (error.message.includes('fetch') || error.message.includes('NetworkError')) {
-        console.warn('Ошибка сети. Проверьте доступность сервера')
-      }
-    }
+// Загрузка списка официантов с сервера
+const loadWaiters = async () => {
+  try {
+    isLoadingWaiters.value = true
+
+    const waitersFromServer = await apiService.getWaiters()
+
+    // Извлекаем массив пользователей из ответа сервера
+    // eslint-disable-next-line @typescript-eslint/no-explicit-any
+    const usersArray = (waitersFromServer as any).users || waitersFromServer
+
+    // Преобразуем данные с сервера в нужный формат
+    const filteredWaiters = usersArray
+      // eslint-disable-next-line @typescript-eslint/no-explicit-any
+      .filter((user: any) => user.role === 'waiter' && user.is_active)
+      // eslint-disable-next-line @typescript-eslint/no-explicit-any
+      .map((user: any) => ({
+        id: user.username, // используем username как id для совместимости
+        name: user.full_name,
+        pin: user.pin_code
+      }))
+
+    waiters.value = filteredWaiters
+  } catch (error) {
+    console.error('Ошибка загрузки официантов:', error)
+    waiters.value = []
+  } finally {
+    isLoadingWaiters.value = false
   }
 }
 
 // Инициализация
-onMounted(() => {
+onMounted(async () => {
   // Проверяем соединение
   checkConnection()
+
+  // Загружаем список официантов
+  await loadWaiters()
 
   // Периодически проверяем соединение
   setInterval(checkConnection, 10000)
@@ -795,6 +833,26 @@ onMounted(() => {
     }
   }
 
+  .form-select {
+    background-image: url("data:image/svg+xml,%3csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 16 16'%3e%3cpath fill='none' stroke='%23343a40' stroke-linecap='round' stroke-linejoin='round' stroke-width='2' d='m1 6 7 7 7-7'/%3e%3c/svg%3e");
+    background-repeat: no-repeat;
+    background-position: right 1rem center;
+    background-size: 16px 12px;
+    padding-right: 3rem;
+    appearance: none;
+
+    &:focus {
+      background-image: url("data:image/svg+xml,%3csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 16 16'%3e%3cpath fill='none' stroke='%23696fd4' stroke-linecap='round' stroke-linejoin='round' stroke-width='2' d='m1 6 7 7 7-7'/%3e%3c/svg%3e");
+    }
+
+    &:disabled {
+      background-color: #f8f9fa;
+      color: #6c757d;
+      cursor: not-allowed;
+      opacity: 0.7;
+    }
+  }
+
   .password-toggle {
     position: absolute;
     right: 1rem;
@@ -819,23 +877,16 @@ onMounted(() => {
 
 .pin-digit {
   width: 50px;
-  height: 50px;
-  border: 2px solid #e9ecef;
-  border-radius: 12px;
-  display: flex;
-  align-items: center;
-  justify-content: center;
-  font-size: 1.5rem;
-  font-weight: bold;
-  color: #696fd4;
-  background: white;
+  height: 6px;
+  border: none;
+  border-radius: 3px;
+  background: #e9ecef;
   transition: all 0.3s ease;
+  position: relative;
 
   &.filled {
     background: #696fd4;
-    color: white;
-    border-color: #696fd4;
-    transform: scale(1.05);
+    box-shadow: 0 0 8px rgba(105, 111, 212, 0.4);
   }
 }
 
@@ -849,16 +900,17 @@ onMounted(() => {
 .keyboard-row {
   display: flex;
   gap: 0.75rem;
-  justify-content: center;
+  justify-content: space-between;
+  width: 100%;
 }
 
 .keyboard-btn {
-  width: 60px;
-  height: 60px;
+  flex: 1;
+  height: 70px;
   border: 2px solid #e9ecef;
   background: white;
   color: #2c3e50;
-  font-size: 1.25rem;
+  font-size: 1.4rem;
   font-weight: 600;
   border-radius: 12px;
   cursor: pointer;
@@ -936,24 +988,14 @@ onMounted(() => {
   gap: 0.5rem;
 }
 
-.demo-hint {
+.debug-info {
+  padding: 0.5rem;
+  background: #f8f9fa;
+  border: 1px solid #dee2e6;
+  border-radius: 4px;
+  margin-top: 0.5rem;
+  font-size: 0.75rem;
   text-align: center;
-  padding: 1rem;
-  background: #d1ecf1;
-  border: 1px solid #bee5eb;
-  border-radius: 8px;
-  font-size: 0.9rem;
-
-  p {
-    margin: 0.25rem 0;
-  }
-
-  code {
-    background: #e9ecef;
-    padding: 0.25rem 0.5rem;
-    border-radius: 4px;
-    font-family: 'Courier New', monospace;
-  }
 }
 
 // Анимации
@@ -1077,14 +1119,12 @@ onMounted(() => {
 
   .pin-digit {
     width: 40px;
-    height: 40px;
-    font-size: 1.25rem;
+    height: 5px;
   }
 
   .keyboard-btn {
-    width: 50px;
-    height: 50px;
-    font-size: 1.1rem;
+    height: 60px;
+    font-size: 1.2rem;
   }
 }
 </style>
