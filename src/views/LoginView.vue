@@ -3,7 +3,12 @@
     <!-- Фоновая секция на всю ширину -->
     <div class="background-section">
       <!-- Индикатор соединения в правом верхнем углу -->
-      <div class="connection-status" :class="connectionClass">
+      <div
+        class="connection-status"
+        :class="connectionClass"
+        :title="`API: ${apiService.getApiUrl()}`"
+        @click="checkConnection"
+      >
         <i :class="connectionIcon"></i>
         <span>{{ connectionText }}</span>
       </div>
@@ -300,6 +305,7 @@ const appVersion = ref('1.0.0')
 
 // Состояние соединения
 const isConnected = ref(false)
+const connectionError = ref('')
 
 // PIN-клавиатура
 const pinDisplay = computed(() => {
@@ -323,9 +329,21 @@ const connectionIcon = computed(() =>
   isConnected.value ? 'bi-wifi' : 'bi-wifi-off'
 )
 
-const connectionText = computed(() =>
-  isConnected.value ? 'Подключено к серверу' : 'Нет соединения с сервером'
-)
+const connectionText = computed(() => {
+  if (isConnected.value) {
+    return 'Сервер подключен'
+  } else {
+    if (connectionError.value.includes('AbortError') || connectionError.value.includes('timeout')) {
+      return 'Таймаут соединения'
+    } else if (connectionError.value.includes('CORS')) {
+      return 'Ошибка CORS'
+    } else if (connectionError.value.includes('fetch') || connectionError.value.includes('NetworkError')) {
+      return 'Сервер недоступен'
+    } else {
+      return 'Нет соединения с сервером'
+    }
+  }
+})
 
 // Методы PIN-клавиатуры
 const addPinDigit = (digit: string) => {
@@ -412,23 +430,26 @@ const checkConnection = async () => {
     })
 
     clearTimeout(timeoutId)
-    console.log('Ответ сервера:', response.status, response.ok)
 
     if (response.ok) {
       isConnected.value = true
+      connectionError.value = ''
       try {
-        const data = await response.json()
-        console.log('Данные от сервера:', data)
+        await response.json()
+        console.log('Соединение с сервером установлено')
       } catch {
         console.log('Сервер ответил без JSON, но соединение установлено')
       }
     } else {
       console.warn('Сервер ответил с ошибкой:', response.status)
       isConnected.value = false
+      connectionError.value = `HTTP ${response.status}`
     }
   } catch (error) {
-    console.warn('Ошибка подключения к серверу:', error instanceof Error ? error.message : 'Неизвестная ошибка')
+    const errorMessage = error instanceof Error ? error.message : 'Неизвестная ошибка'
+    console.warn('Ошибка подключения к серверу:', errorMessage)
     isConnected.value = false
+    connectionError.value = errorMessage
 
     // Дополнительная диагностика
     if (error instanceof Error) {
@@ -436,7 +457,7 @@ const checkConnection = async () => {
         console.warn('Превышен таймаут подключения к серверу (5 сек)')
       } else if (error.message.includes('CORS')) {
         console.warn('Ошибка CORS. Сервер не разрешает запросы с текущего домена')
-      } else if (error.message.includes('fetch')) {
+      } else if (error.message.includes('fetch') || error.message.includes('NetworkError')) {
         console.warn('Ошибка сети. Проверьте доступность сервера')
       }
     }
@@ -463,7 +484,6 @@ onMounted(() => {
   height: 100vh;
   display: flex;
   position: relative;
-  overflow: hidden;
 }
 
 // Фоновая секция на всю ширину
@@ -632,8 +652,14 @@ onMounted(() => {
   background: rgba(255, 255, 255, 0.95);
   box-shadow: 0 8px 32px rgba(0, 0, 0, 0.1);
   backdrop-filter: blur(10px);
-  z-index: 1000;
+  z-index: 9999;
   transition: all 0.3s ease;
+  cursor: pointer;
+
+  &:hover {
+    transform: translateY(-2px);
+    box-shadow: 0 12px 40px rgba(0, 0, 0, 0.15);
+  }
 
   &.connected {
     color: #155724;
@@ -641,16 +667,18 @@ onMounted(() => {
 
     i {
       color: #28a745;
+      animation: pulse-success 2s infinite;
     }
   }
 
   &.disconnected {
     color: #721c24;
     border: 2px solid #dc3545;
-    animation: pulse 2s infinite;
+    animation: shake 0.5s ease-in-out;
 
     i {
       color: #dc3545;
+      animation: pulse-danger 1s infinite;
     }
   }
 
@@ -947,6 +975,40 @@ onMounted(() => {
   }
   100% {
     opacity: 1;
+  }
+}
+
+@keyframes pulse-success {
+  0%, 100% {
+    opacity: 1;
+    transform: scale(1);
+  }
+  50% {
+    opacity: 0.8;
+    transform: scale(1.1);
+  }
+}
+
+@keyframes pulse-danger {
+  0%, 100% {
+    opacity: 1;
+    transform: scale(1);
+  }
+  50% {
+    opacity: 0.6;
+    transform: scale(1.2);
+  }
+}
+
+@keyframes shake {
+  0%, 100% {
+    transform: translateX(0);
+  }
+  25% {
+    transform: translateX(-2px);
+  }
+  75% {
+    transform: translateX(2px);
   }
 }
 

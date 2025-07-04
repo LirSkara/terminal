@@ -74,7 +74,7 @@ watch(() => route.name, (newRouteName) => {
     updateBrowserTheme('#696fd4')
   } else {
     // Синий цвет для остальных страниц
-    updateBrowserTheme('#3498db')
+    updateBrowserTheme('#696fd4')
   }
 }, { immediate: true })
 
