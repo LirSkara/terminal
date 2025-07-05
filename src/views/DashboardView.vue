@@ -56,25 +56,45 @@
     <!-- Основная сетка столиков -->
     <div class="tables-section">
       <div class="container-fluid">
-        <!-- Фильтры и поиск -->
-        <div class="tables-controls mb-4">
+        <!-- Объединенная компактная панель управления -->
+        <div class="unified-controls mb-4">
           <div class="row align-items-center">
-            <div class="col-md-8">
-              <div class="filter-buttons">
-                <button
-                  v-for="filter in tableFilters"
-                  :key="filter.key"
-                  @click="activeFilter = filter.key"
-                  :class="['filter-btn', { active: activeFilter === filter.key }]"
-                >
-                  <i :class="filter.icon"></i>
-                  <span>{{ filter.label }}</span>
-                  <span class="count">{{ filter.count }}</span>
-                </button>
+            <!-- Левая часть: зоны и фильтры -->
+            <div class="col-lg-8 col-md-7">
+              <div class="controls-left">
+                <!-- Компактные вкладки зон -->
+                <div class="zones-compact">
+                  <button
+                    v-for="zone in zonesWithCounts"
+                    :key="zone.id"
+                    @click="switchZone(zone.id)"
+                    :class="['zone-tab-compact', { active: activeZone === zone.id }]"
+                    :style="{ '--zone-color': zone.color }"
+                    :title="zone.name"
+                  >
+                    <i :class="zone.icon"></i>
+                    <span class="zone-count">{{ zone.count }}</span>
+                  </button>
+                </div>
+
+                <!-- Компактные фильтры -->
+                <div class="filters-compact">
+                  <button
+                    v-for="filter in filtersWithCounts"
+                    :key="filter.key"
+                    @click="activeFilter = filter.key"
+                    :class="['filter-btn-compact', { active: activeFilter === filter.key }]"
+                    :title="filter.label"
+                  >
+                    <i :class="filter.icon"></i>
+                    <span class="filter-count">{{ filter.count }}</span>
+                  </button>
+                </div>
               </div>
             </div>
-            <div class="col-md-4">
-              <!-- Быстрые действия справа -->
+
+            <!-- Правая часть: быстрые действия -->
+            <div class="col-lg-4 col-md-5">
               <div class="quick-actions-section">
                 <button
                   @click="showAllReady"
@@ -101,13 +121,22 @@
                   <i class="bi bi-clock-fill"></i>
                   <span class="badge-count" v-if="longWaitingTables > 0">{{ longWaitingTables }}</span>
                 </button>
+
+                <button
+                  @click="logout"
+                  class="quick-action-btn logout"
+                  title="Выход из терминала"
+                >
+                  <i class="bi bi-box-arrow-right"></i>
+                  <span class="logout-text">Выход из терминала</span>
+                </button>
               </div>
             </div>
           </div>
         </div>
 
         <!-- Сетка столиков -->
-        <div class="tables-grid">
+        <div class="tables-grid" :key="`zone-${activeZone}-filter-${activeFilter}`">
           <div
             v-for="table in filteredTables"
             :key="table.id"
@@ -139,23 +168,19 @@
                 <!-- Дополнительная информация в зависимости от статуса -->
                 <div class="table-details">
                   <template v-if="table.status === 'occupied'">
-                    <div class="order-time">
+                    <div class="order-info-line">
                       <i class="bi bi-clock"></i>
                       {{ formatTime(table.orderTime) }}
-                    </div>
-                    <div class="order-amount">
-                      <i class="bi bi-currency-dollar"></i>
+                      <span class="separator">•</span>
                       {{ table.orderAmount }}₽
                     </div>
                   </template>
 
                   <template v-if="table.status === 'qr-waiting'">
-                    <div class="order-time">
+                    <div class="order-info-line">
                       <i class="bi bi-clock"></i>
                       {{ formatTime(table.orderTime) }}
-                    </div>
-                    <div class="order-amount">
-                      <i class="bi bi-currency-dollar"></i>
+                      <span class="separator">•</span>
                       {{ table.orderAmount }}₽
                     </div>
                   </template>
@@ -198,11 +223,11 @@
 
                 <button
                   v-if="table.status === 'occupied'"
-                  @click="callTable(table)"
-                  class="action-btn info"
-                  title="Позвать"
+                  @click="viewOrder(table)"
+                  class="action-btn view-order"
+                  title="Посмотреть заказ"
                 >
-                  <i class="bi bi-megaphone"></i>
+                  <i class="bi bi-eye"></i>
                 </button>
 
                 <button
@@ -217,7 +242,7 @@
                 <button
                   v-if="table.status === 'qr-waiting'"
                   @click="viewQrOrder(table)"
-                  class="action-btn info"
+                  class="action-btn qr-view"
                   title="Посмотреть заказ"
                 >
                   <i class="bi bi-eye"></i>
@@ -235,7 +260,7 @@
                 <button
                   v-if="table.status === 'occupied' || table.status === 'qr-waiting'"
                   @click="printBill(table)"
-                  class="action-btn warning"
+                  class="action-btn print-bill"
                   title="Счет"
                 >
                   <i class="bi bi-receipt"></i>
@@ -244,7 +269,7 @@
                 <button
                   v-if="table.status === 'cleaning'"
                   @click="closeTable(table)"
-                  class="action-btn primary"
+                  class="action-btn finish-cleaning"
                   title="Закрыть столик"
                 >
                   <i class="bi bi-check2-all"></i>
@@ -259,8 +284,9 @@
 </template>
 
 <script setup lang="ts">
-import { ref, computed, onMounted, onUnmounted } from 'vue'
+import { ref, computed, onMounted, onUnmounted, watch } from 'vue'
 import { useAuthStore } from '@/stores/auth'
+import { useRouter } from 'vue-router'
 
 // Типы
 interface Table {
@@ -271,14 +297,35 @@ interface Table {
   orderTime: Date | null
   orderAmount: number
   hasQrOrder?: boolean
+  zone: string
+}
+
+interface Zone {
+  id: string
+  name: string
+  icon: string
+  color: string
 }
 
 // Auth store
 const authStore = useAuthStore()
 
+// Router
+const router = useRouter()
+
 // Реактивные данные
 const currentTime = ref('')
 const activeFilter = ref('all')
+const activeZone = ref('all')
+
+// Зоны ресторана
+const zones = ref<Zone[]>([
+  { id: 'all', name: 'Все зоны', icon: 'bi-grid-3x3', color: '#6c757d' },
+  { id: 'hall', name: 'Основной зал', icon: 'bi-house-door', color: '#3498db' },
+  { id: 'terrace', name: 'Терраса', icon: 'bi-tree', color: '#27ae60' },
+  { id: 'vip', name: 'VIP зона', icon: 'bi-star-fill', color: '#f39c12' },
+  { id: 'bar', name: 'Барная зона', icon: 'bi-cup-straw', color: '#9b59b6' }
+])
 
 // Имя официанта из store
 const waiterName = computed(() => {
@@ -287,34 +334,50 @@ const waiterName = computed(() => {
 
 // Данные столиков (демо)
 const tables = ref<Table[]>([
-  { id: 1, number: '01', seats: 2, status: 'free', orderTime: null, orderAmount: 0 },
-  { id: 2, number: '02', seats: 4, status: 'occupied', orderTime: new Date(Date.now() - 1800000), orderAmount: 1250 },
-  { id: 3, number: '03', seats: 6, status: 'ready', orderTime: new Date(Date.now() - 3600000), orderAmount: 2340 },
-  { id: 4, number: '04', seats: 2, status: 'qr-waiting', orderTime: new Date(Date.now() - 300000), orderAmount: 890, hasQrOrder: true },
-  { id: 5, number: '05', seats: 4, status: 'occupied', orderTime: new Date(Date.now() - 900000), orderAmount: 890 },
-  { id: 6, number: '06', seats: 8, status: 'cleaning', orderTime: null, orderAmount: 0 },
-  { id: 7, number: '07', seats: 2, status: 'qr-waiting', orderTime: new Date(Date.now() - 600000), orderAmount: 1456, hasQrOrder: true },
-  { id: 8, number: '08', seats: 4, status: 'ready', orderTime: new Date(Date.now() - 2700000), orderAmount: 1680 },
-  { id: 9, number: '09', seats: 6, status: 'occupied', orderTime: new Date(Date.now() - 600000), orderAmount: 456 },
-  { id: 10, number: '10', seats: 4, status: 'free', orderTime: null, orderAmount: 0 },
-  { id: 11, number: '11', seats: 2, status: 'occupied', orderTime: new Date(Date.now() - 2100000), orderAmount: 1100 },
-  { id: 12, number: '12', seats: 6, status: 'qr-waiting', orderTime: new Date(Date.now() - 900000), orderAmount: 2100, hasQrOrder: true }
+  { id: 1, number: '01', seats: 2, status: 'free', orderTime: null, orderAmount: 0, zone: 'hall' },
+  { id: 2, number: '02', seats: 4, status: 'occupied', orderTime: new Date(Date.now() - 1800000), orderAmount: 1250, zone: 'hall' },
+  { id: 3, number: '03', seats: 6, status: 'ready', orderTime: new Date(Date.now() - 3600000), orderAmount: 2340, zone: 'hall' },
+  { id: 4, number: '04', seats: 2, status: 'qr-waiting', orderTime: new Date(Date.now() - 300000), orderAmount: 890, hasQrOrder: true, zone: 'hall' },
+  { id: 5, number: '05', seats: 4, status: 'occupied', orderTime: new Date(Date.now() - 900000), orderAmount: 890, zone: 'terrace' },
+  { id: 6, number: '06', seats: 8, status: 'cleaning', orderTime: null, orderAmount: 0, zone: 'terrace' },
+  { id: 7, number: '07', seats: 2, status: 'qr-waiting', orderTime: new Date(Date.now() - 600000), orderAmount: 1456, hasQrOrder: true, zone: 'terrace' },
+  { id: 8, number: '08', seats: 4, status: 'ready', orderTime: new Date(Date.now() - 2700000), orderAmount: 1680, zone: 'vip' },
+  { id: 9, number: '09', seats: 6, status: 'occupied', orderTime: new Date(Date.now() - 600000), orderAmount: 456, zone: 'vip' },
+  { id: 10, number: '10', seats: 4, status: 'free', orderTime: null, orderAmount: 0, zone: 'vip' },
+  { id: 11, number: '11', seats: 2, status: 'occupied', orderTime: new Date(Date.now() - 2100000), orderAmount: 1100, zone: 'bar' },
+  { id: 12, number: '12', seats: 6, status: 'qr-waiting', orderTime: new Date(Date.now() - 900000), orderAmount: 2100, hasQrOrder: true, zone: 'bar' }
 ])
 
-// Фильтры столиков
-const tableFilters = computed(() => [
-  { key: 'all', label: 'Все', icon: 'bi-grid-3x3', count: tables.value.length },
-  { key: 'free', label: 'Свободные', icon: 'bi-check-circle', count: tables.value.filter(t => t.status === 'free').length },
-  { key: 'occupied', label: 'Занятые', icon: 'bi-people-fill', count: tables.value.filter(t => t.status === 'occupied').length },
-  { key: 'qr-waiting', label: 'QR заказы', icon: 'bi-qr-code-scan', count: tables.value.filter(t => t.status === 'qr-waiting').length },
-  { key: 'ready', label: 'Готовые', icon: 'bi-bell-fill', count: tables.value.filter(t => t.status === 'ready').length },
-  { key: 'cleaning', label: 'Уборка', icon: 'bi-arrow-clockwise', count: tables.value.filter(t => t.status === 'cleaning').length }
-])
+// Стабильные счетчики для зон (без зависимости от активного фильтра)
+const zonesWithCounts = computed(() => {
+  return zones.value.map(zone => ({
+    ...zone,
+    count: zone.id === 'all'
+      ? tables.value.length
+      : tables.value.filter(t => t.zone === zone.id).length
+  }))
+})
+
+// Стабильные счетчики для фильтров (только для текущей зоны, без зависимости от активного фильтра)
+const filtersWithCounts = computed(() => {
+  const currentZoneTables = activeZone.value === 'all'
+    ? tables.value
+    : tables.value.filter(t => t.zone === activeZone.value)
+
+  return [
+    { key: 'all', label: 'Все', icon: 'bi-grid-3x3', count: currentZoneTables.length },
+    { key: 'free', label: 'Свободные', icon: 'bi-check-circle', count: currentZoneTables.filter(t => t.status === 'free').length },
+    { key: 'occupied', label: 'Занятые', icon: 'bi-people-fill', count: currentZoneTables.filter(t => t.status === 'occupied').length },
+    { key: 'qr-waiting', label: 'QR заказы', icon: 'bi-qr-code-scan', count: currentZoneTables.filter(t => t.status === 'qr-waiting').length },
+    { key: 'ready', label: 'Готовые', icon: 'bi-bell-fill', count: currentZoneTables.filter(t => t.status === 'ready').length },
+    { key: 'cleaning', label: 'Уборка', icon: 'bi-arrow-clockwise', count: currentZoneTables.filter(t => t.status === 'cleaning').length }
+  ]
+})
 
 // Вычисляемые свойства для статистики
-const totalTables = computed(() => tables.value.length)
-const occupiedTables = computed(() => tables.value.filter(t => t.status === 'occupied').length)
-const readyOrders = computed(() => tables.value.filter(t => t.status === 'ready').length)
+const totalTables = computed(() => zoneStats.value.total)
+const occupiedTables = computed(() => zoneStats.value.occupied)
+const readyOrders = computed(() => zoneStats.value.ready)
 const longWaitingTables = computed(() => {
   const now = new Date()
   return tables.value.filter(t => {
@@ -331,12 +394,33 @@ const longWaitingTables = computed(() => {
 const filteredTables = computed(() => {
   let filtered = tables.value
 
+  // Фильтр по зоне
+  if (activeZone.value !== 'all') {
+    filtered = filtered.filter(table => table.zone === activeZone.value)
+  }
+
   // Фильтр по статусу
   if (activeFilter.value !== 'all') {
     filtered = filtered.filter(table => table.status === activeFilter.value)
   }
 
   return filtered
+})
+
+// Статистика по текущей зоне
+const zoneStats = computed(() => {
+  const currentZoneTables = activeZone.value === 'all'
+    ? tables.value
+    : tables.value.filter(t => t.zone === activeZone.value)
+
+  return {
+    total: currentZoneTables.length,
+    free: currentZoneTables.filter(t => t.status === 'free').length,
+    occupied: currentZoneTables.filter(t => t.status === 'occupied').length,
+    qrWaiting: currentZoneTables.filter(t => t.status === 'qr-waiting').length,
+    ready: currentZoneTables.filter(t => t.status === 'ready').length,
+    cleaning: currentZoneTables.filter(t => t.status === 'cleaning').length
+  }
 })
 
 // Методы
@@ -403,9 +487,9 @@ const viewQrOrder = (table: Table) => {
   // Здесь будет логика просмотра QR заказа
 }
 
-const callTable = (table: Table) => {
-  console.log('Позвать столик:', table.number)
-  // Здесь будет логика вызова столика (например, отправка сообщения или звонок)
+const viewOrder = (table: Table) => {
+  console.log('Посмотреть заказ столика:', table.number)
+  // Здесь будет логика просмотра обычного заказа
 }
 
 const printBill = (table: Table) => {
@@ -430,6 +514,11 @@ const createNewOrder = () => {
 const filterTables = (status: string) => {
   activeFilter.value = status
   console.log('Фильтр по статусу:', status)
+}
+
+const switchZone = (zoneId: string) => {
+  activeZone.value = zoneId
+  console.log('Переключение на зону:', zoneId)
 }
 
 const showAllReady = () => {
@@ -468,6 +557,24 @@ const playNotificationSound = () => {
   console.log('🔔 Звуковое уведомление!')
 }
 
+const logout = async () => {
+  console.log('Выход из системы')
+  try {
+    // Сначала выходим из системы
+    await authStore.logout()
+    console.log('Logout completed, redirecting to login')
+  } catch (error) {
+    console.error('Ошибка при выходе:', error)
+  } finally {
+    // В любом случае перенаправляем на логин с заменой текущей записи в истории
+    await router.replace({ name: 'login' })
+    // Принудительная перезагрузка страницы если роутер не сработал
+    if (router.currentRoute.value.name !== 'login') {
+      window.location.href = '/login'
+    }
+  }
+}
+
 // Таймер для обновления времени
 let timeInterval: number
 
@@ -482,6 +589,23 @@ onUnmounted(() => {
     clearInterval(timeInterval)
   }
 })
+
+// Автопереключение на "Все" при отсутствии столиков
+watch(filteredTables, (newTables) => {
+  // Если в текущей выборке нет столиков и мы не на "Все"
+  if (newTables.length === 0) {
+    // Если активен фильтр по статусу (не "all"), переключаем на "all"
+    if (activeFilter.value !== 'all') {
+      activeFilter.value = 'all'
+      console.log('Автопереключение фильтра на "Все" - нет столиков в текущем фильтре')
+    }
+    // Если активна зона (не "all") и фильтр уже "all", переключаем зону на "all"
+    else if (activeZone.value !== 'all' && activeFilter.value === 'all') {
+      activeZone.value = 'all'
+      console.log('Автопереключение зоны на "Все зоны" - нет столиков в текущей зоне')
+    }
+  }
+}, { immediate: false })
 </script>
 
 <style scoped lang="scss">
@@ -549,6 +673,7 @@ onUnmounted(() => {
   display: flex;
   gap: 0.75rem;
   justify-content: flex-end;
+  align-items: center;
 }
 
 .quick-action-btn {
@@ -587,6 +712,28 @@ onUnmounted(() => {
 
     &.pulse {
       animation: urgent-pulse 1.5s infinite;
+    }
+  }
+
+  &.logout {
+    width: auto;
+    min-width: 48px;
+    padding: 0 16px;
+    background: linear-gradient(45deg, #e74c3c, #c0392b);
+    gap: 8px;
+
+    &:hover {
+      background: linear-gradient(45deg, #c0392b, #e74c3c);
+    }
+
+    .logout-text {
+      font-size: 0.85rem;
+      font-weight: 500;
+      white-space: nowrap;
+    }
+
+    i {
+      font-size: 1.1rem;
     }
   }
 
@@ -698,6 +845,118 @@ onUnmounted(() => {
   padding: 0 1rem 2rem;
 }
 
+// Вкладки зон
+.zones-tabs {
+  background: rgba(255, 255, 255, 0.95);
+  backdrop-filter: blur(10px);
+  border-radius: 20px;
+  padding: 1.5rem;
+  box-shadow: 0 8px 32px rgba(0, 0, 0, 0.1);
+  border: 1px solid rgba(255, 255, 255, 0.2);
+  margin-bottom: 1.5rem;
+}
+
+.zones-header {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  margin-bottom: 1.5rem;
+}
+
+.zones-title {
+  font-size: 1.5rem;
+  font-weight: 700;
+  color: #2c3e50;
+  margin: 0;
+  display: flex;
+  align-items: center;
+
+  i {
+    background: linear-gradient(45deg, #667eea, #764ba2);
+    -webkit-background-clip: text;
+    -webkit-text-fill-color: transparent;
+    background-clip: text;
+  }
+}
+
+.zone-stats {
+  display: flex;
+  align-items: center;
+  gap: 1rem;
+}
+
+.current-zone-info {
+  font-size: 1rem;
+  color: #6c757d;
+  font-weight: 600;
+  padding: 0.5rem 1rem;
+  background: rgba(102, 126, 234, 0.1);
+  border-radius: 20px;
+}
+
+.zones-navigation {
+  display: flex;
+  gap: 0.75rem;
+  flex-wrap: wrap;
+}
+
+.zone-tab {
+  background: rgba(255, 255, 255, 0.8);
+  border: 2px solid transparent;
+  border-radius: 16px;
+  padding: 1rem 1.5rem;
+  display: flex;
+  align-items: center;
+  gap: 0.75rem;
+  font-weight: 600;
+  color: #6c757d;
+  transition: all 0.3s ease;
+  cursor: pointer;
+  position: relative;
+  overflow: hidden;
+  min-width: 140px;
+
+  &:hover {
+    background: rgba(255, 255, 255, 1);
+    border-color: var(--zone-color, #667eea);
+    transform: translateY(-2px);
+    box-shadow: 0 8px 25px rgba(0, 0, 0, 0.1);
+    color: var(--zone-color, #667eea);
+  }
+
+  &.active {
+    background: var(--zone-color, #667eea);
+    color: white;
+    border-color: transparent;
+    box-shadow: 0 8px 25px rgba(0, 0, 0, 0.2);
+
+    .zone-indicator {
+      background: rgba(255, 255, 255, 0.3);
+      color: white;
+    }
+  }
+
+  i {
+    font-size: 1.2rem;
+  }
+
+  span {
+    flex: 1;
+    text-align: left;
+  }
+}
+
+.zone-indicator {
+  background: rgba(108, 117, 125, 0.2);
+  border-radius: 20px;
+  padding: 0.25rem 0.75rem;
+  font-size: 0.85rem;
+  font-weight: 700;
+  min-width: 2rem;
+  text-align: center;
+  transition: all 0.3s ease;
+}
+
 // Элементы управления
 .tables-controls {
   background: rgba(255, 255, 255, 0.95);
@@ -757,6 +1016,134 @@ onUnmounted(() => {
   }
 }
 
+// Компактная объединенная панель управления
+.unified-controls {
+  background: rgba(255, 255, 255, 0.95);
+  backdrop-filter: blur(10px);
+  border-radius: 20px;
+  padding: 1rem 1.5rem;
+  box-shadow: 0 8px 32px rgba(0, 0, 0, 0.1);
+  border: 1px solid rgba(255, 255, 255, 0.2);
+  margin-bottom: 1.5rem;
+}
+
+.controls-left {
+  display: flex;
+  align-items: center;
+  gap: 1.5rem;
+  flex-wrap: wrap;
+}
+
+// Компактные зоны
+.zones-compact {
+  display: flex;
+  gap: 0.5rem;
+  align-items: center;
+}
+
+.zone-tab-compact {
+  position: relative;
+  width: 56px;
+  height: 56px;
+  border-radius: 16px;
+  border: 2px solid transparent;
+  background: rgba(255, 255, 255, 0.8);
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  cursor: pointer;
+  transition: all 0.3s ease;
+  color: #6c757d;
+  font-weight: 600;
+
+  i {
+    font-size: 1.1rem;
+    margin-bottom: 2px;
+  }
+
+  .zone-count {
+    font-size: 0.7rem;
+    font-weight: 700;
+    line-height: 1;
+  }
+
+  &:hover {
+    background: rgba(255, 255, 255, 1);
+    border-color: var(--zone-color, #667eea);
+    transform: translateY(-2px);
+    box-shadow: 0 6px 20px rgba(0, 0, 0, 0.1);
+    color: var(--zone-color, #667eea);
+  }
+
+  &.active {
+    background: var(--zone-color, #667eea);
+    color: white;
+    border-color: transparent;
+    box-shadow: 0 6px 20px rgba(0, 0, 0, 0.2);
+    transform: translateY(-2px);
+
+    .zone-count {
+      color: rgba(255, 255, 255, 0.9);
+    }
+  }
+}
+
+// Компактные фильтры
+.filters-compact {
+  display: flex;
+  gap: 0.5rem;
+  align-items: center;
+}
+
+.filter-btn-compact {
+  position: relative;
+  width: 48px;
+  height: 48px;
+  border-radius: 12px;
+  border: 2px solid transparent;
+  background: rgba(255, 255, 255, 0.8);
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  cursor: pointer;
+  transition: all 0.3s ease;
+  color: #6c757d;
+  font-weight: 600;
+
+  i {
+    font-size: 1rem;
+    margin-bottom: 1px;
+  }
+
+  .filter-count {
+    font-size: 0.65rem;
+    font-weight: 700;
+    line-height: 1;
+  }
+
+  &:hover {
+    background: rgba(255, 255, 255, 1);
+    border-color: rgba(102, 126, 234, 0.3);
+    transform: translateY(-2px);
+    box-shadow: 0 6px 20px rgba(0, 0, 0, 0.1);
+    color: #667eea;
+  }
+
+  &.active {
+    background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+    color: white;
+    border-color: transparent;
+    box-shadow: 0 6px 20px rgba(102, 126, 234, 0.3);
+    transform: translateY(-2px);
+
+    .filter-count {
+      color: rgba(255, 255, 255, 0.9);
+    }
+  }
+}
+
 .search-box {
   position: relative;
 
@@ -792,6 +1179,7 @@ onUnmounted(() => {
   grid-template-columns: repeat(auto-fill, minmax(280px, 1fr));
   gap: 1.5rem;
   margin-top: 1.5rem;
+  animation: fadeInUp 0.4s ease-out;
 }
 
 // Карточки столиков
@@ -877,7 +1265,7 @@ onUnmounted(() => {
 }
 
 .table-info {
-  margin-bottom: 1.5rem;
+  margin-bottom: 1rem;
   flex-grow: 1;
   display: flex;
   flex-direction: column;
@@ -888,36 +1276,53 @@ onUnmounted(() => {
   display: flex;
   align-items: center;
   justify-content: center;
-  gap: 0.5rem;
+  gap: 0.3rem;
   font-weight: 600;
-  font-size: 1.1rem;
+  font-size: 0.9rem;
   color: #6c757d;
-  margin-bottom: 0.75rem;
+  margin-bottom: 0.5rem;
 }
 
 .table-details {
+  .order-info-line {
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    gap: 0.4rem;
+    font-size: 0.85rem;
+    font-weight: 600;
+    color: #5a6c7d;
+    margin-bottom: 0.3rem;
+    flex-wrap: nowrap;
+
+    .separator {
+      color: #95a5a6;
+      font-weight: 400;
+    }
+  }
+
   .order-time,
   .order-amount {
     display: flex;
     align-items: center;
     justify-content: center;
-    gap: 0.5rem;
-    font-size: 1rem;
+    gap: 0.3rem;
+    font-size: 0.85rem;
     font-weight: 600;
     color: #5a6c7d;
-    margin-bottom: 0.5rem;
+    margin-bottom: 0.3rem;
   }
 
   .ready-indicator {
     display: flex;
     align-items: center;
     justify-content: center;
-    gap: 0.5rem;
+    gap: 0.3rem;
     color: #f39c12;
     font-weight: 700;
-    font-size: 1.1rem;
+    font-size: 0.9rem;
     text-align: center;
-    margin-top: 0.5rem;
+    margin-top: 0.3rem;
     animation: ready-glow 2s infinite;
   }
 
@@ -925,31 +1330,33 @@ onUnmounted(() => {
     display: flex;
     align-items: center;
     justify-content: center;
-    gap: 0.5rem;
+    gap: 0.3rem;
     color: #95a5a6;
     font-weight: 600;
-    font-size: 1rem;
+    font-size: 0.85rem;
     text-align: center;
   }
 }
 
 .table-actions {
   display: flex;
-  gap: 0.75rem;
-  justify-content: center;
+  gap: 0.5rem;
+  justify-content: stretch;
   margin-top: auto;
-  padding-top: 1rem;
+  padding-top: 0.75rem;
+  width: 100%;
 }
 
 .action-btn {
-  width: 48px;
-  height: 48px;
-  border-radius: 12px;
+  flex: 1;
+  min-width: 0;
+  height: 82px;
+  border-radius: 16px;
   border: none;
   display: flex;
   align-items: center;
   justify-content: center;
-  font-size: 1.2rem;
+  font-size: 1.6rem;
   color: white;
   transition: all 0.3s ease;
   cursor: pointer;
@@ -959,32 +1366,61 @@ onUnmounted(() => {
     box-shadow: 0 8px 25px rgba(0, 0, 0, 0.2);
   }
 
+  // Открыть столик (свободный) - синий градиент
   &.primary {
     background: linear-gradient(45deg, #667eea, #764ba2);
   }
 
+  // Добавить к заказу - зеленый градиент
   &.success {
     background: linear-gradient(45deg, #27ae60, #2ecc71);
   }
 
+  // Подать заказ (готовый) - оранжевый градиент
   &.ready {
     background: linear-gradient(45deg, #f39c12, #f4d03f);
   }
 
+  // Посмотреть заказ - голубой градиент
   &.info {
     background: linear-gradient(45deg, #3498db, #2980b9);
   }
 
+  // Счет - коричневый/оранжевый градиент
   &.warning {
     background: linear-gradient(45deg, #e67e22, #d35400);
   }
 
+  // Подтвердить QR заказ - фиолетовый градиент
   &.qr-confirm {
     background: linear-gradient(45deg, #9b59b6, #8e44ad);
   }
 
+  // Закрыть столик (уборка) - серый градиент
   &.secondary {
     background: linear-gradient(45deg, #6c757d, #95a5a6);
+  }
+
+  // Новые уникальные цвета для дополнительных действий
+
+  // Посмотреть QR заказ - розовый градиент
+  &.qr-view {
+    background: linear-gradient(45deg, #e91e63, #f06292);
+  }
+
+  // Альтернативный цвет для просмотра заказа - морской волны
+  &.view-order {
+    background: linear-gradient(45deg, #1abc9c, #16a085);
+  }
+
+  // Печать счета - темно-коричневый градиент
+  &.print-bill {
+    background: linear-gradient(45deg, #8d4004, #a0522d);
+  }
+
+  // Завершить уборку - изумрудный градиент
+  &.finish-cleaning {
+    background: linear-gradient(45deg, #00b894, #00a085);
   }
 }
 
@@ -1116,160 +1552,14 @@ onUnmounted(() => {
   }
 }
 
-// Адаптивность
-@media (max-width: 768px) {
-  .dashboard-header {
-    margin: 0.5rem;
-    padding: 1.5rem;
+@keyframes fadeInUp {
+  0% {
+    opacity: 0;
+    transform: translateY(20px);
   }
-
-  .dashboard-title {
-    font-size: 2rem;
-  }
-
-  .header-right-section {
-    flex-direction: column;
-    gap: 1rem;
-    align-items: flex-end;
-  }
-
-  .stats-and-create {
-    flex-direction: column;
-    gap: 1rem;
-    align-items: flex-end;
-  }
-
-  .quick-actions-section {
-    justify-content: center;
-  }
-
-  .quick-action-btn {
-    width: 44px;
-    height: 44px;
-    font-size: 1.1rem;
-  }
-
-  .quick-stats {
-    gap: 1rem;
-  }
-
-  .header-actions {
-    justify-content: center;
-    margin-bottom: 0;
-  }
-
-  .create-order-btn-large {
-    font-size: 1.1rem;
-    padding: 0.9rem 1.8rem;
-  }
-
-  .filter-buttons {
-    justify-content: center;
-    margin-bottom: 1rem;
-  }
-
-  .quick-actions-section {
-    justify-content: center;
-  }
-
-  .tables-grid {
-    grid-template-columns: repeat(auto-fill, minmax(250px, 1fr));
-    gap: 1rem;
-  }
-
-  .table-number {
-    font-size: 3rem;
-  }
-
-  .seats-count {
-    font-size: 1rem;
-  }
-
-  .action-btn {
-    width: 44px;
-    height: 44px;
-  }
-}
-
-@media (max-width: 576px) {
-  .tables-section {
-    padding: 0 0.5rem 1rem;
-  }
-
-  .dashboard-header {
-    margin: 0.25rem;
-    padding: 1rem;
-  }
-
-  .tables-controls {
-    padding: 1rem;
-  }
-
-  .filter-buttons {
-    flex-direction: column;
-    align-items: stretch;
-    margin-bottom: 1rem;
-  }
-
-  .filter-btn {
-    justify-content: center;
-  }
-
-  .header-right-section {
-    flex-direction: column;
-    gap: 1rem;
-    align-items: center;
-  }
-
-  .stats-and-create {
-    flex-direction: column;
-    gap: 1rem;
-    align-items: center;
-  }
-
-  .quick-actions-section {
-    justify-content: center;
-    margin-top: 1rem;
-  }
-
-  .quick-action-btn {
-    width: 40px;
-    height: 40px;
-    font-size: 1rem;
-  }
-
-  .quick-stats {
-    order: 2;
-    gap: 0.8rem;
-  }
-
-  .header-actions {
-    order: 1;
-  }
-
-  .create-order-btn-large {
-    width: 100%;
-    justify-content: center;
-    font-size: 1rem;
-    padding: 0.8rem 1.5rem;
-  }
-
-  .tables-grid {
-    grid-template-columns: 1fr;
-  }
-
-  .table-number {
-    font-size: 2.8rem;
-  }
-
-  .seats-count {
-    font-size: 0.95rem;
-  }
-
-  .action-btn {
-    width: 40px;
-    height: 40px;
-    font-size: 1rem;
+  100% {
+    opacity: 1;
+    transform: translateY(0);
   }
 }
 </style>
