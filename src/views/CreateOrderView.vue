@@ -234,7 +234,7 @@
     <!-- Модальное окно выбора вариаций -->
     <div v-if="showDishModal" class="dish-modal-overlay" @click="closeDishModal">
       <div class="dish-modal" @click.stop>
-        <div class="modal-header">
+        <div class="modal-header" :style="{ backgroundImage: selectedDish?.image ? `url(${selectedDish.image})` : 'none' }">
           <h3>{{ selectedDish?.name }}</h3>
           <button @click="closeDishModal" class="modal-close-btn">
             <i class="bi bi-x"></i>
@@ -245,27 +245,27 @@
           <div class="dish-details">
             <!-- Информация для официантов -->
             <div class="info-grid" v-if="selectedDish">
-              <div class="info-item" v-if="selectedDish.cookingTime">
+              <div class="info-item" v-if="currentDishInfo?.cookingTime">
                 <i class="bi bi-clock"></i>
                 <div>
-                  <span class="label">Время приготовления</span>
-                  <span class="value">{{ selectedDish.cookingTime }} мин</span>
+                  <span class="label">Готовится</span>
+                  <span class="value">{{ currentDishInfo.cookingTime }} мин</span>
                 </div>
               </div>
 
-              <div class="info-item" v-if="selectedDish.portionWeight">
+              <div class="info-item" v-if="currentDishInfo?.portionWeight">
                 <i class="bi bi-speedometer2"></i>
                 <div>
                   <span class="label">Вес порции</span>
-                  <span class="value">{{ selectedDish.portionWeight }} г</span>
+                  <span class="value">{{ currentDishInfo.portionWeight }} г</span>
                 </div>
               </div>
 
-              <div class="info-item" v-if="selectedDish.calories">
+              <div class="info-item" v-if="currentDishInfo?.calories">
                 <i class="bi bi-lightning"></i>
                 <div>
                   <span class="label">Калорийность</span>
-                  <span class="value">{{ selectedDish.calories }} ккал</span>
+                  <span class="value">{{ currentDishInfo.calories }} ккал</span>
                 </div>
               </div>
 
@@ -285,7 +285,6 @@
                 :key="variation.id"
                 class="variation-group"
               >
-                <h4>{{ variation.name }}:</h4>
                 <div class="variation-options">
                   <button
                     v-for="option in variation.options"
@@ -295,10 +294,10 @@
                       active: selectedVariations[variation.id]?.id === option.id
                     }]"
                   >
-                    <span>{{ option.name }}</span>
-                    <span class="option-price">
-                      {{ option.price }}₽
-                    </span>
+                    <div class="option-main">
+                      <span class="option-name">{{ option.name }}</span>
+                      <span class="option-price">{{ option.price }}₽</span>
+                    </div>
                   </button>
                 </div>
               </div>
@@ -417,6 +416,9 @@ interface DishVariationOption {
   id: string
   name: string
   price: number // Фиксированная цена вместо модификатора
+  portionWeight?: number // вес порции в граммах
+  calories?: number // калорийность
+  cookingTime?: number // время приготовления в минутах
 }
 
 interface DishVariation {
@@ -616,9 +618,9 @@ const categories = ref<Category[]>([
             name: 'Размер',
             required: true,
             options: [
-              { id: 'small', name: 'Маленький', price: 550 },
-              { id: 'regular', name: 'Обычный', price: 650 },
-              { id: 'large', name: 'Большой', price: 750 }
+              { id: 'small', name: 'Маленький', price: 550, portionWeight: 180, calories: 320, cookingTime: 7 },
+              { id: 'regular', name: 'Обычный', price: 650, portionWeight: 220, calories: 380, cookingTime: 8 },
+              { id: 'large', name: 'Большой', price: 750, portionWeight: 280, calories: 450, cookingTime: 9 }
             ]
           }
         ]
@@ -677,9 +679,9 @@ const categories = ref<Category[]>([
             name: 'Размер',
             required: true,
             options: [
-              { id: 'small', name: 'Порция 200г', price: 1490 },
-              { id: 'regular', name: 'Порция 280г', price: 1890 },
-              { id: 'large', name: 'Порция 350г', price: 2290 }
+              { id: 'small', name: 'Порция 200г', price: 1490, portionWeight: 200, calories: 520, cookingTime: 16 },
+              { id: 'regular', name: 'Порция 280г', price: 1890, portionWeight: 280, calories: 650, cookingTime: 18 },
+              { id: 'large', name: 'Порция 350г', price: 2290, portionWeight: 350, calories: 780, cookingTime: 20 }
             ]
           }
         ]
@@ -752,8 +754,8 @@ const categories = ref<Category[]>([
             name: 'Размер',
             required: true,
             options: [
-              { id: 'single', name: 'Одинарный', price: 180 },
-              { id: 'double', name: 'Двойной', price: 280 }
+              { id: 'single', name: 'Одинарный', price: 180, portionWeight: 30, calories: 5, cookingTime: 2 },
+              { id: 'double', name: 'Двойной', price: 280, portionWeight: 60, calories: 10, cookingTime: 3 }
             ]
           }
         ]
@@ -812,6 +814,30 @@ const getZoneColor = (zoneName: string) => {
   }
   return colors[zoneName] || '#6c757d'
 }
+
+// Динамические значения для модального окна на основе выбранных вариаций
+const currentDishInfo = computed(() => {
+  if (!selectedDish.value) return null
+
+  let cookingTime = selectedDish.value.cookingTime
+  let calories = selectedDish.value.calories
+  let portionWeight = selectedDish.value.portionWeight
+
+  // Если есть выбранные вариации, используем их значения
+  const selectedOptions = Object.values(selectedVariations.value)
+  if (selectedOptions.length > 0) {
+    const firstOption = selectedOptions[0]
+    cookingTime = firstOption.cookingTime ?? cookingTime
+    calories = firstOption.calories ?? calories
+    portionWeight = firstOption.portionWeight ?? portionWeight
+  }
+
+  return {
+    cookingTime,
+    calories,
+    portionWeight
+  }
+})
 
 // Методы
 const updateTime = () => {

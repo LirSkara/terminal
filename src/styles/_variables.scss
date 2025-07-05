@@ -238,6 +238,18 @@ $qres-breakpoints: (
   }
 }
 
+// Мягкая анимация для индикатора готовности
+@keyframes qres-gentle-pulse {
+  0%, 100% {
+    transform: scale(1);
+    opacity: 1;
+  }
+  50% {
+    transform: scale(1.05);
+    opacity: 0.8;
+  }
+}
+
 // === УТИЛИТАРНЫЕ КЛАССЫ ===
 .qres-glass {
   @include qres-glass-effect();
