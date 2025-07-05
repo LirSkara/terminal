@@ -524,12 +524,12 @@ const orderTypes = ref<OrderType[]>([
   }
 ])
 
-// Столики (демо данные)
+// Столики (данные как в дашборде)
 const availableTables = ref([
   { id: '01', name: 'Столик 01', capacity: 2, zone: 'Основной зал' },
   { id: '02', name: 'Столик 02', capacity: 4, zone: 'Основной зал' },
   { id: '03', name: 'Столик 03', capacity: 6, zone: 'Основной зал' },
-  { id: '04', name: 'Столик 04', capacity: 2, zone: 'Основной зал' },
+  { id: '04', name: 'Столик 04', capacity: 2, zone: 'Барная зона' },
   { id: '05', name: 'Столик 05', capacity: 4, zone: 'Терраса' },
   { id: '06', name: 'Столик 06', capacity: 8, zone: 'Терраса' },
   { id: '07', name: 'Столик 07', capacity: 2, zone: 'Терраса' },
@@ -803,14 +803,13 @@ const activeZoneTables = computed(() => {
   return tablesByZones.value[activeZone.value]
 })
 
-// Цвета для зон
+// Цвета для зон (как в дашборде)
 const getZoneColor = (zoneName: string) => {
   const colors: Record<string, string> = {
-    'Основной зал': '#2ecc71',
-    'VIP зона': '#9b59b6',
-    'Банкетный зал': '#e67e22',
-    'Терраса': '#3498db',
-    'Бар': '#e74c3c'
+    'Основной зал': '#3498db',
+    'VIP зона': '#f39c12',
+    'Терраса': '#27ae60',
+    'Барная зона': '#9b59b6'
   }
   return colors[zoneName] || '#6c757d'
 }
