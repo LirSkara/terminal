@@ -12,7 +12,7 @@ const router = createRouter({
       path: '/login',
       name: 'login',
       component: () => import('@/views/LoginView.vue'),
-      meta: { 
+      meta: {
         requiresAuth: false,
         title: 'Вход в систему'
       }
@@ -21,9 +21,18 @@ const router = createRouter({
       path: '/dashboard',
       name: 'dashboard',
       component: () => import('@/views/DashboardView.vue'),
-      meta: { 
+      meta: {
         requiresAuth: true,
         title: 'Столики'
+      }
+    },
+    {
+      path: '/create-order',
+      name: 'create-order',
+      component: () => import('@/views/CreateOrderView.vue'),
+      meta: {
+        requiresAuth: true,
+        title: 'Создание заказа'
       }
     },
     {
@@ -36,10 +45,10 @@ const router = createRouter({
 // Глобальная защита маршрутов
 router.beforeEach(async (to, from, next) => {
   const authStore = useAuthStore()
-  
+
   // Проверяем требует ли маршрут авторизации
   const requiresAuth = to.meta.requiresAuth !== false
-  
+
   if (requiresAuth && !authStore.isAuthenticated) {
     // Пытаемся восстановить сессию если есть токен
     if (authStore.token) {
@@ -49,18 +58,18 @@ router.beforeEach(async (to, from, next) => {
         return
       }
     }
-    
+
     // Перенаправляем на страницу входа
     next({ name: 'login', query: { redirect: to.fullPath } })
     return
   }
-  
+
   // Если пользователь авторизован и пытается зайти на страницу входа
   if (to.name === 'login' && authStore.isAuthenticated) {
     next({ name: 'dashboard' })
     return
   }
-  
+
   next()
 })
 

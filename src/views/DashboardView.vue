@@ -106,14 +106,6 @@
                 </button>
 
                 <button
-                  @click="showKitchen"
-                  class="quick-action-btn kitchen"
-                  title="Связь с кухней"
-                >
-                  <i class="bi bi-chat-dots-fill"></i>
-                </button>
-
-                <button
                   @click="showWaitingTables"
                   :class="['quick-action-btn', 'waiting', { 'pulse': longWaitingTables > 0 }]"
                   title="Долго ждут"
@@ -460,12 +452,20 @@ const getTableIcon = (status: string) => {
 
 const openTable = (table: Table) => {
   console.log('Открыть столик:', table.number)
-  // Здесь будет логика открытия столика
+  // Перенаправляем на страницу создания заказа с номером столика
+  router.push({
+    path: '/create-order',
+    query: { table: table.number }
+  })
 }
 
 const addToOrder = (table: Table) => {
   console.log('Добавить к заказу столика:', table.number)
-  // Здесь будет логика добавления к заказу
+  // Перенаправляем на страницу создания заказа с номером столика
+  router.push({
+    path: '/create-order',
+    query: { table: table.number }
+  })
 }
 
 const serveOrder = (table: Table) => {
@@ -506,9 +506,7 @@ const closeTable = (table: Table) => {
 }
 
 const createNewOrder = () => {
-  console.log('Создать новый заказ')
-  // Здесь будет логика создания нового заказа
-  // Возможно, откроется модальное окно с выбором столика или создание заказа на вынос
+  router.push({ path: '/create-order' })
 }
 
 const filterTables = (status: string) => {
@@ -526,11 +524,6 @@ const showAllReady = () => {
   console.log('Показать все готовые заказы')
   // Эмуляция звукового уведомления
   playNotificationSound()
-}
-
-const showKitchen = () => {
-  console.log('Связь с кухней')
-  // Здесь будет логика открытия чата с кухней или уведомлений
 }
 
 const showWaitingTables = () => {
