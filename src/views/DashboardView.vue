@@ -272,6 +272,80 @@
         </div>
       </div>
     </div>
+
+    <!-- Модальное окно заказа -->
+    <Teleport to="body">
+      <div
+        v-if="showOrderModal"
+        class="order-modal-backdrop"
+        @click="closeOrderModal"
+      >
+        <div class="order-modal" @click.stop>
+          <div class="order-modal-header">
+            <h3 class="order-modal-title">
+              <i class="bi bi-receipt me-2"></i>
+              Заказ столика {{ selectedOrder?.tableNumber }}
+            </h3>
+            <button @click="closeOrderModal" class="order-modal-close">
+              <i class="bi bi-x-lg"></i>
+            </button>
+          </div>
+
+          <div class="order-modal-body" v-if="selectedOrder">
+            <!-- Позиции заказа -->
+            <div class="order-items-section">
+              <h4 class="order-section-title">
+                <i class="bi bi-list-ul me-2"></i>
+                Позиции заказа
+              </h4>
+              <div class="order-items-list">
+                <div
+                  v-for="item in selectedOrder.items"
+                  :key="item.id"
+                  class="order-item"
+                >
+                  <div class="order-item-info">
+                    <div class="order-item-name">{{ item.name }}</div>
+                    <div class="order-item-category">{{ item.category }}</div>
+                    <div v-if="item.notes" class="order-item-notes">
+                      <i class="bi bi-chat-text me-1"></i>
+                      {{ item.notes }}
+                    </div>
+                  </div>
+                  <div class="order-item-quantity">{{ item.quantity }}x</div>
+                  <div class="order-item-price">{{ item.price * item.quantity }}₽</div>
+                </div>
+              </div>
+            </div>
+
+            <!-- Комментарии к заказу -->
+            <div v-if="selectedOrder.notes" class="order-notes-section">
+              <h4 class="order-section-title">
+                <i class="bi bi-chat-square-text me-2"></i>
+                Комментарии к заказу
+              </h4>
+              <div class="order-notes">{{ selectedOrder.notes }}</div>
+            </div>
+          </div>          <div class="order-modal-footer">
+            <div class="order-modal-actions">
+              <!-- Итого слева -->
+              <div class="order-total-text">
+                Итого: {{ selectedOrder?.total }}₽
+              </div>
+
+              <!-- Кнопка печати справа -->
+              <button
+                @click="printOrderBill"
+                class="qres-btn qres-btn-outline order-print-btn"
+              >
+                <i class="bi bi-printer me-2"></i>
+                Печать счета
+              </button>
+            </div>
+          </div>
+        </div>
+      </div>
+    </Teleport>
   </div>
 </template>
 
@@ -292,6 +366,26 @@ interface Table {
   zone: string
 }
 
+interface OrderItem {
+  id: number
+  name: string
+  price: number
+  quantity: number
+  category: string
+  notes?: string
+}
+
+interface Order {
+  id: number
+  tableNumber: string
+  items: OrderItem[]
+  total: number
+  status: 'active' | 'ready' | 'served' | 'cancelled'
+  orderTime: Date
+  waiterName: string
+  notes?: string
+}
+
 interface Zone {
   id: string
   name: string
@@ -309,6 +403,10 @@ const router = useRouter()
 const currentTime = ref('')
 const activeFilter = ref('all')
 const activeZone = ref('all')
+
+// Модальное окно заказа
+const showOrderModal = ref(false)
+const selectedOrder = ref<Order | null>(null)
 
 // Зоны ресторана
 const zones = ref<Zone[]>([
@@ -498,12 +596,54 @@ const confirmQrOrder = (table: Table) => {
 
 const viewQrOrder = (table: Table) => {
   console.log('Посмотреть QR заказ столика:', table.number)
-  // Здесь будет логика просмотра QR заказа
+  // Создаем демо-данные QR заказа
+  selectedOrder.value = {
+    id: table.id,
+    tableNumber: table.number,
+    items: [
+      { id: 1, name: 'Пицца Маргарита', price: 680, quantity: 1, category: 'Пицца', notes: 'Заказ через QR-код' },
+      { id: 2, name: 'Капучино', price: 180, quantity: 2, category: 'Напитки' }
+    ],
+    total: table.orderAmount,
+    status: 'active',
+    orderTime: table.orderTime || new Date(),
+    waiterName: waiterName.value,
+    notes: 'QR заказ. Требует подтверждения официанта'
+  }
+  showOrderModal.value = true
 }
 
 const viewOrder = (table: Table) => {
   console.log('Посмотреть заказ столика:', table.number)
-  // Здесь будет логика просмотра обычного заказа
+  // Создаем демо-данные заказа
+  selectedOrder.value = {
+    id: table.id,
+    tableNumber: table.number,
+    items: [
+      { id: 1, name: 'Борщ украинский', price: 350, quantity: 2, category: 'Первые блюда', notes: 'Без сметаны' },
+      { id: 2, name: 'Котлета по-киевски', price: 450, quantity: 1, category: 'Основные блюда' },
+      { id: 3, name: 'Салат Цезарь', price: 280, quantity: 1, category: 'Салаты', notes: 'Соус отдельно' },
+      { id: 4, name: 'Чай черный', price: 120, quantity: 2, category: 'Напитки' }
+    ],
+    total: table.orderAmount,
+    status: table.status === 'ready' ? 'ready' : 'active',
+    orderTime: table.orderTime || new Date(),
+    waiterName: waiterName.value,
+    notes: 'Столик у окна, гости просили быстрее'
+  }
+  showOrderModal.value = true
+}
+
+const closeOrderModal = () => {
+  showOrderModal.value = false
+  selectedOrder.value = null
+}
+
+const printOrderBill = () => {
+  if (selectedOrder.value) {
+    console.log('Печать счета для заказа столика:', selectedOrder.value.tableNumber)
+    // Здесь будет логика печати счета
+  }
 }
 
 const printBill = (table: Table) => {

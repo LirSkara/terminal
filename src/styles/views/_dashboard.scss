@@ -623,3 +623,266 @@
     box-shadow: var(--qres-shadow-md), 0 0 0 8px rgba(243, 156, 18, 0.2);
   }
 }
+
+// === МОДАЛЬНОЕ ОКНО ЗАКАЗА ===
+.order-modal-backdrop {
+  position: fixed;
+  top: 0;
+  left: 0;
+  right: 0;
+  bottom: 0;
+  background: var(--qres-overlay-bg);
+  backdrop-filter: blur(8px);
+  z-index: var(--qres-z-modal-backdrop);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  padding: 2rem;
+  animation: qres-fadeIn 0.3s ease-out;
+}
+
+.order-modal {
+  @include qres-glass-effect();
+  border-radius: var(--qres-radius-xl);
+  box-shadow: var(--qres-shadow-xl);
+  width: 100%;
+  max-width: 700px;
+  max-height: 90vh;
+  overflow: hidden;
+  animation: qres-scaleIn 0.3s ease-out;
+  display: flex;
+  flex-direction: column;
+}
+
+// === ЗАГОЛОВОК МОДАЛЬНОГО ОКНА ===
+.order-modal-header {
+  padding: 2rem 2rem 1rem;
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  border-bottom: 1px solid rgba(0, 0, 0, 0.1);
+}
+
+.order-modal-title {
+  font-size: 1.5rem;
+  font-weight: 700;
+  color: var(--qres-dark);
+  margin: 0;
+  display: flex;
+  align-items: center;
+
+  i {
+    background: var(--qres-gradient-primary);
+    -webkit-background-clip: text;
+    -webkit-text-fill-color: transparent;
+    background-clip: text;
+  }
+}
+
+.order-modal-close {
+  width: 40px;
+  height: 40px;
+  border-radius: var(--qres-radius-full);
+  border: none;
+  background: rgba(0, 0, 0, 0.1);
+  color: var(--qres-gray-600);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  cursor: pointer;
+  transition: all var(--qres-transition-normal);
+
+  &:hover {
+    background: var(--qres-danger);
+    color: white;
+    transform: scale(1.1);
+  }
+}
+
+// === ТЕЛО МОДАЛЬНОГО ОКНА ===
+.order-modal-body {
+  padding: 1rem 2rem;
+  overflow-y: auto;
+  flex: 1;
+}
+
+// === ПОЗИЦИИ ЗАКАЗА ===
+.order-items-section {
+  margin-bottom: 2rem;
+}
+
+.order-section-title {
+  font-size: 1.25rem;
+  font-weight: 700;
+  color: var(--qres-dark);
+  margin-bottom: 1rem;
+  display: flex;
+  align-items: center;
+
+  i {
+    color: var(--qres-primary);
+  }
+}
+
+.order-items-list {
+  display: flex;
+  flex-direction: column;
+  gap: 0.75rem;
+}
+
+.order-item {
+  display: flex;
+  align-items: center;
+  padding: 1rem;
+  @include qres-glass-effect(0.8);
+  border-radius: var(--qres-radius-md);
+  border: 1px solid rgba(0, 0, 0, 0.05);
+  transition: all var(--qres-transition-normal);
+
+  &:hover {
+    border-color: rgba(102, 126, 234, 0.3);
+    transform: translateY(-1px);
+  }
+}
+
+.order-item-info {
+  flex: 1;
+}
+
+.order-item-name {
+  font-weight: 600;
+  color: var(--qres-dark);
+  margin-bottom: 0.25rem;
+}
+
+.order-item-category {
+  font-size: 0.875rem;
+  color: var(--qres-gray-500);
+  margin-bottom: 0.25rem;
+}
+
+.order-item-notes {
+  font-size: 0.875rem;
+  color: var(--qres-warning);
+  font-style: italic;
+}
+
+.order-item-quantity {
+  min-width: 60px;
+  text-align: center;
+  font-weight: 700;
+  color: var(--qres-primary);
+  background: rgba(102, 126, 234, 0.1);
+  padding: 0.25rem 0.5rem;
+  border-radius: var(--qres-radius-sm);
+  margin: 0 1rem;
+}
+
+.order-item-price {
+  min-width: 80px;
+  text-align: right;
+  font-weight: 700;
+  color: var(--qres-dark);
+  font-size: 1.1rem;
+}
+
+// === КОММЕНТАРИИ К ЗАКАЗУ ===
+.order-notes-section {
+  margin-bottom: 2rem;
+}
+
+.order-notes {
+  padding: 1rem;
+  @include qres-glass-effect(0.8);
+  border-radius: var(--qres-radius-md);
+  border-left: 4px solid var(--qres-warning);
+  font-style: italic;
+  color: var(--qres-gray-700);
+}
+
+// === ИТОГО ===
+.order-total-text {
+  display: flex;
+  align-items: center;
+  font-size: 1.125rem;
+  font-weight: 700;
+  color: var(--qres-dark);
+}
+
+// === ПОДВАЛ МОДАЛЬНОГО ОКНА ===
+.order-modal-footer {
+  padding: 1rem 2rem 2rem;
+  border-top: 1px solid rgba(0, 0, 0, 0.1);
+}
+
+.order-modal-actions {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 1rem;
+  flex-wrap: wrap;
+}
+
+.order-total-text {
+  flex: 1;
+  min-width: 200px;
+}
+
+.order-print-btn {
+  flex: 1;
+  min-width: 200px;
+  justify-content: center;
+}
+
+// === АДАПТИВНОСТЬ МОДАЛЬНОГО ОКНА ===
+@media (max-width: 768px) {
+  .order-modal-backdrop {
+    padding: 1rem;
+  }
+
+  .order-modal {
+    max-width: 100%;
+    margin: 0;
+  }
+
+  .order-modal-header,
+  .order-modal-body,
+  .order-modal-footer {
+    padding-left: 1.5rem;
+    padding-right: 1.5rem;
+  }
+
+  .order-item {
+    flex-direction: column;
+    align-items: flex-start;
+    gap: 0.5rem;
+  }
+
+  .order-item-quantity,
+  .order-item-price {
+    margin: 0;
+    align-self: flex-end;
+  }
+
+  .order-modal-actions {
+    flex-direction: column;
+    align-items: stretch;
+    gap: 1rem;
+  }
+
+  .order-total-text,
+  .order-print-btn {
+    width: 100%;
+    min-width: auto;
+  }
+
+  .order-total-text {
+    order: 2;
+    justify-content: center;
+    text-align: center;
+  }
+
+  .order-print-btn {
+    order: 1;
+  }
+}
