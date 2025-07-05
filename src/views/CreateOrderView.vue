@@ -8,10 +8,8 @@
             <h1 class="order-title">
               <i class="bi bi-plus-circle-fill me-3"></i>
               Создание заказа
-            </h1>
-            <p class="order-subtitle">
               <span
-                class="order-info-item clickable"
+                class="order-info-item clickable ms-3"
                 @click="openOrderTypeModal"
                 :class="{
                   'order-table': selectedOrderType === 'table' && selectedTable,
@@ -23,7 +21,9 @@
                 <i :class="getOrderTypeIcon()" class="me-1"></i>
                 {{ getOrderLocationText() }}
                 <i class="bi bi-pencil-square ms-1"></i>
-              </span> •
+              </span>
+            </h1>
+            <p class="order-subtitle">
               Время: {{ currentTime }} •
               Официант: {{ waiterName }}
             </p>
@@ -361,22 +361,44 @@
           <!-- Выбор столика (показывается только если выбран тип "За столиком") -->
           <div v-if="selectedOrderType === 'table'" class="tables-section">
             <h4>Выберите столик:</h4>
-            <div class="tables-grid">
+
+            <!-- Вкладки зон -->
+            <div class="zone-tabs">
               <button
-                v-for="table in availableTables"
-                :key="table.id"
-                @click="selectTable(table.id)"
-                class="table-card"
+                v-for="zoneName in availableZones"
+                :key="zoneName"
+                @click="selectZone(zoneName)"
+                :class="['zone-tab', { active: activeZone === zoneName }]"
+                :style="{ '--zone-color': getZoneColor(zoneName) }"
               >
-                <div class="table-info">
-                  <h5>{{ table.name }}</h5>
-                  <span class="table-zone">{{ table.zone }}</span>
-                  <span class="table-capacity">
-                    <i class="bi bi-people"></i>
-                    {{ table.capacity }} мест
-                  </span>
-                </div>
+                <span
+                  class="zone-tab-badge"
+                  :style="{ backgroundColor: getZoneColor(zoneName) }"
+                >
+                  {{ zoneName }}
+                </span>
+                <span class="zone-count">{{ tablesByZones[zoneName]?.length || 0 }}</span>
               </button>
+            </div>
+
+            <!-- Столики активной зоны -->
+            <div v-if="activeZone" class="zone-content">
+              <div class="tables-grid">
+                <button
+                  v-for="table in activeZoneTables"
+                  :key="table.id"
+                  @click="selectTable(table.id)"
+                  class="table-card"
+                >
+                  <div class="table-info">
+                    <h5>{{ table.name }}</h5>
+                    <span class="table-capacity">
+                      <i class="bi bi-people"></i>
+                      {{ table.capacity }} мест
+                    </span>
+                  </div>
+                </button>
+              </div>
             </div>
           </div>
         </div>
@@ -476,6 +498,7 @@ const showOrderTypeModal = ref(false)
 const selectedDish = ref<Dish | null>(null)
 const selectedVariations = ref<Record<string, DishVariationOption>>({})
 const modalQuantity = ref(1)
+const activeZone = ref<string | null>(null)
 
 // Типы заказов
 const orderTypes = ref<OrderType[]>([
@@ -510,9 +533,7 @@ const availableTables = ref([
   { id: '07', name: 'Столик 07', capacity: 2, zone: 'Терраса' },
   { id: '08', name: 'Столик 08', capacity: 4, zone: 'VIP зона' },
   { id: '09', name: 'Столик 09', capacity: 6, zone: 'VIP зона' },
-  { id: '10', name: 'Столик 10', capacity: 4, zone: 'VIP зона' },
-  { id: '11', name: 'Столик 11', capacity: 2, zone: 'Барная зона' },
-  { id: '12', name: 'Столик 12', capacity: 6, zone: 'Барная зона' }
+  { id: '10', name: 'Столик 10', capacity: 4, zone: 'VIP зона' }
 ])
 
 // Имя официанта
@@ -755,6 +776,43 @@ const totalPrice = computed(() => {
   return cartItems.value.reduce((sum, item) => sum + item.totalPrice, 0)
 })
 
+// Группировка столиков по зонам
+const tablesByZones = computed(() => {
+  const zones: Record<string, typeof availableTables.value> = {}
+  availableTables.value.forEach(table => {
+    if (!zones[table.zone]) {
+      zones[table.zone] = []
+    }
+    zones[table.zone].push(table)
+  })
+  return zones
+})
+
+// Список всех зон
+const availableZones = computed(() => {
+  return Object.keys(tablesByZones.value)
+})
+
+// Столики активной зоны
+const activeZoneTables = computed(() => {
+  if (!activeZone.value || !tablesByZones.value[activeZone.value]) {
+    return []
+  }
+  return tablesByZones.value[activeZone.value]
+})
+
+// Цвета для зон
+const getZoneColor = (zoneName: string) => {
+  const colors: Record<string, string> = {
+    'Основной зал': '#2ecc71',
+    'VIP зона': '#9b59b6',
+    'Банкетный зал': '#e67e22',
+    'Терраса': '#3498db',
+    'Бар': '#e74c3c'
+  }
+  return colors[zoneName] || '#6c757d'
+}
+
 // Методы
 const updateTime = () => {
   const now = new Date()
@@ -793,10 +851,19 @@ const getOrderTypeIcon = () => {
 
 const openOrderTypeModal = () => {
   showOrderTypeModal.value = true
+  // Устанавливаем первую зону как активную по умолчанию
+  if (availableZones.value.length > 0) {
+    activeZone.value = availableZones.value[0]
+  }
 }
 
 const closeOrderTypeModal = () => {
   showOrderTypeModal.value = false
+  activeZone.value = null
+}
+
+const selectZone = (zoneName: string) => {
+  activeZone.value = zoneName
 }
 
 const selectOrderType = (type: string) => {
@@ -849,7 +916,7 @@ const calculateDishPrice = () => {
   if (requiredVariations.length > 0) {
     const selectedOptions = Object.values(selectedVariations.value)
     if (selectedOptions.length > 0) {
-      // Возвращаем цену первой выбранной вариации (в новой логике цена уже финальная)
+      // Возвращаем цену первой выбранной вариции (в новой логике цена уже финальная)
       return selectedOptions[0].price || selectedDish.value.basePrice
     }
   }
@@ -1064,7 +1131,7 @@ onUnmounted(() => {
   display: flex;
   align-items: center;
 
-  i {
+  > i:first-child {
     background: linear-gradient(45deg, #667eea, #764ba2);
     -webkit-background-clip: text;
     -webkit-text-fill-color: transparent;
@@ -1171,7 +1238,7 @@ onUnmounted(() => {
   letter-spacing: -0.02em;
 
   i {
-    background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+    background: linear-gradient(135deg, #667eea, #764ba2);
     -webkit-background-clip: text;
     -webkit-text-fill-color: transparent;
     background-clip: text;
@@ -2078,19 +2145,20 @@ onUnmounted(() => {
 
   &.clickable {
     cursor: pointer;
-    padding: 0.6rem 1.2rem;
-    border-radius: 16px;
+    padding: 0.5rem 1rem;
+    border-radius: 14px;
     background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
     color: white;
     font-weight: 700;
-    font-size: 1rem;
+    font-size: 0.9rem;
     border: none;
     box-shadow: 0 4px 15px rgba(102, 126, 234, 0.3);
     display: inline-flex;
     align-items: center;
-    gap: 0.5rem;
+    gap: 0.4rem;
     position: relative;
     overflow: hidden;
+    vertical-align: middle;
 
     &::before {
       content: '';
@@ -2130,6 +2198,10 @@ onUnmounted(() => {
       &:active {
         box-shadow: 0 6px 20px rgba(46, 204, 113, 0.5);
       }
+
+      i {
+        color: white !important;
+      }
     }
 
     &.order-takeaway {
@@ -2144,6 +2216,10 @@ onUnmounted(() => {
       &:active {
         box-shadow: 0 6px 20px rgba(243, 156, 18, 0.5);
       }
+
+      i {
+        color: white !important;
+      }
     }
 
     &.order-delivery {
@@ -2157,6 +2233,10 @@ onUnmounted(() => {
 
       &:active {
         box-shadow: 0 6px 20px rgba(52, 152, 219, 0.5);
+      }
+
+      i {
+        color: white !important;
       }
     }
 
@@ -2174,10 +2254,15 @@ onUnmounted(() => {
       &:active {
         box-shadow: 0 6px 20px rgba(231, 76, 60, 0.5);
       }
+
+      i {
+        color: white !important;
+      }
     }
 
     i {
-      font-size: 1.1rem;
+      font-size: 0.95rem;
+      color: white !important;
     }
   }
 }
@@ -2308,9 +2393,87 @@ onUnmounted(() => {
   }
 }
 
+// Вкладки зон
+.zone-tabs {
+  display: flex;
+  gap: 0.5rem;
+  margin-bottom: 1.5rem;
+  flex-wrap: wrap;
+}
+
+.zone-tab {
+  background: linear-gradient(145deg, #ffffff 0%, #f8f9ff 100%);
+  border: 2px solid rgba(0, 0, 0, 0.1);
+  border-radius: 16px;
+  padding: 0.75rem 1rem;
+  cursor: pointer;
+  transition: all 0.3s ease;
+  display: flex;
+  align-items: center;
+  gap: 0.5rem;
+  font-weight: 600;
+  color: #6c757d;
+
+  &:hover {
+    border-color: var(--zone-color, #667eea);
+    background: linear-gradient(145deg, #f8f9ff 0%, #ffffff 100%);
+    transform: translateY(-2px);
+    box-shadow: 0 8px 25px rgba(0, 0, 0, 0.1);
+  }
+
+  &.active {
+    background: linear-gradient(135deg, var(--zone-color, #667eea) 0%, var(--zone-color, #764ba2) 100%);
+    color: white;
+    border-color: transparent;
+    box-shadow: 0 6px 20px rgba(0, 0, 0, 0.2);
+
+    .zone-tab-badge {
+      background: rgba(255, 255, 255, 0.2) !important;
+      color: white !important;
+    }
+
+    .zone-count {
+      background: rgba(255, 255, 255, 0.2);
+      color: white;
+    }
+  }
+}
+
+.zone-tab-badge {
+  display: inline-block;
+  color: white;
+  font-weight: 700;
+  font-size: 0.75rem;
+  padding: 0.3rem 0.6rem;
+  border-radius: 12px;
+  text-transform: uppercase;
+  letter-spacing: 0.5px;
+  text-shadow: 0 1px 2px rgba(0, 0, 0, 0.3);
+}
+
+.zone-count {
+  background: rgba(108, 117, 125, 0.15);
+  color: #6c757d;
+  border-radius: 12px;
+  padding: 0.2rem 0.5rem;
+  font-size: 0.75rem;
+  font-weight: 700;
+  min-width: 1.5rem;
+  text-align: center;
+  transition: all 0.3s ease;
+}
+
+// Контент зоны
+.zone-content {
+  background: rgba(255, 255, 255, 0.3);
+  border-radius: 16px;
+  padding: 1.5rem;
+  border: 1px solid rgba(0, 0, 0, 0.05);
+}
+
 .tables-grid {
   display: grid;
-  grid-template-columns: repeat(auto-fit, minmax(180px, 1fr));
+  grid-template-columns: repeat(auto-fit, minmax(160px, 1fr));
   gap: 1rem;
 }
 

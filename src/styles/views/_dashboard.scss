@@ -1,0 +1,624 @@
+// ==========================================
+// QRes OS 4 - Стили панели управления
+// ==========================================
+
+@import '../variables';
+@import '../components/common';
+
+// === ОСНОВНОЙ КОНТЕЙНЕР ===
+.dashboard-view {
+  position: relative;
+  z-index: 1;
+  min-height: 100vh;
+}
+
+// === ЗАГОЛОВОК ДАШБОРДА ===
+.dashboard-header {
+  @include qres-glass-effect();
+  border-radius: var(--qres-radius-xl);
+  margin: 1rem;
+  padding: 2rem;
+  box-shadow: var(--qres-shadow-md);
+  position: relative;
+  z-index: 2;
+}
+
+.dashboard-title {
+  font-size: 2.5rem;
+  font-weight: 800;
+  color: var(--qres-dark);
+  margin-bottom: 0.5rem;
+  display: flex;
+  align-items: center;
+
+  i {
+    background: var(--qres-gradient-primary);
+    -webkit-background-clip: text;
+    -webkit-text-fill-color: transparent;
+    background-clip: text;
+  }
+}
+
+.dashboard-subtitle {
+  color: var(--qres-gray-500);
+  font-size: 1.1rem;
+  margin: 0;
+
+  .badge {
+    font-size: 0.9rem;
+    padding: 0.5rem 1rem;
+  }
+}
+
+// === ПРАВАЯ СЕКЦИЯ ЗАГОЛОВКА ===
+.header-right-section {
+  display: flex;
+  flex-direction: column;
+  gap: 1rem;
+  align-items: flex-end;
+}
+
+.stats-and-create {
+  display: flex;
+  gap: 2rem;
+  align-items: center;
+  justify-content: flex-end;
+}
+
+.quick-stats {
+  display: flex;
+  gap: 1.5rem;
+  align-items: center;
+}
+
+.stat-item {
+  text-align: center;
+  cursor: pointer;
+  padding: 0.5rem;
+  border-radius: var(--qres-radius-sm);
+  transition: all var(--qres-transition-normal);
+
+  &.clickable:hover {
+    background: rgba(102, 126, 234, 0.1);
+    transform: translateY(-1px);
+  }
+
+  .stat-number {
+    display: block;
+    font-size: 2rem;
+    font-weight: 700;
+    line-height: 1;
+  }
+
+  .stat-label {
+    display: block;
+    font-size: 0.9rem;
+    color: var(--qres-gray-500);
+    margin-top: 0.25rem;
+  }
+}
+
+.header-actions {
+  display: flex;
+  justify-content: flex-end;
+}
+
+.create-order-btn-large {
+  @extend .qres-btn;
+  @extend .qres-btn-primary;
+  @extend .qres-btn-xl;
+  box-shadow: 0 6px 20px rgba(102, 126, 234, 0.3);
+
+  i {
+    font-size: 1.3rem;
+  }
+}
+
+// === БЫСТРЫЕ ДЕЙСТВИЯ ===
+.quick-actions-section {
+  display: flex;
+  gap: 0.75rem;
+  justify-content: flex-end;
+  align-items: center;
+}
+
+.quick-action-btn {
+  position: relative;
+  width: 48px;
+  height: 48px;
+  border-radius: var(--qres-radius-md);
+  border: none;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  font-size: 1.2rem;
+  color: white;
+  transition: all var(--qres-transition-normal);
+  cursor: pointer;
+
+  &:hover {
+    transform: translateY(-2px);
+    box-shadow: var(--qres-shadow-lg);
+  }
+
+  &.ready {
+    background: var(--qres-gradient-warning);
+
+    &.pulse {
+      @include qres-pulse-animation($qres-warning);
+    }
+  }
+
+  &.waiting {
+    background: var(--qres-gradient-danger);
+
+    &.pulse {
+      @include qres-pulse-animation($qres-danger);
+    }
+  }
+
+  &.logout {
+    width: auto;
+    min-width: 48px;
+    padding: 0 16px;
+    background: var(--qres-gradient-danger);
+    gap: 8px;
+
+    &:hover {
+      background: linear-gradient(45deg, #c0392b, #e74c3c);
+    }
+
+    .logout-text {
+      font-size: 0.85rem;
+      font-weight: 500;
+      white-space: nowrap;
+    }
+
+    i {
+      font-size: 1.1rem;
+    }
+  }
+
+  .badge-count {
+    position: absolute;
+    top: -8px;
+    right: -8px;
+    background: var(--qres-danger);
+    color: white;
+    border-radius: var(--qres-radius-full);
+    width: 20px;
+    height: 20px;
+    font-size: 0.7rem;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    font-weight: 700;
+    border: 2px solid white;
+  }
+}
+
+// === СЕКЦИЯ СТОЛИКОВ ===
+.tables-section {
+  padding: 0 1rem 2rem;
+}
+
+// === ОБЪЕДИНЕННАЯ ПАНЕЛЬ УПРАВЛЕНИЯ ===
+.unified-controls {
+  @include qres-glass-effect();
+  border-radius: var(--qres-radius-xl);
+  padding: 1rem 1.5rem;
+  box-shadow: var(--qres-shadow-md);
+  margin-bottom: 1.5rem;
+}
+
+.controls-left {
+  display: flex;
+  align-items: center;
+  gap: 1.5rem;
+  flex-wrap: wrap;
+}
+
+// === КОМПАКТНЫЕ ЗОНЫ ===
+.zones-compact {
+  display: flex;
+  gap: 0.5rem;
+  align-items: center;
+}
+
+.zone-tab-compact {
+  position: relative;
+  width: 56px;
+  height: 56px;
+  border-radius: var(--qres-radius-lg);
+  border: 2px solid transparent;
+  @include qres-glass-effect(0.8);
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  cursor: pointer;
+  transition: all var(--qres-transition-normal);
+  color: var(--qres-gray-500);
+  font-weight: 600;
+
+  i {
+    font-size: 1.1rem;
+    margin-bottom: 2px;
+  }
+
+  .zone-count {
+    font-size: 0.7rem;
+    font-weight: 700;
+    line-height: 1;
+  }
+
+  &:hover {
+    background: rgba(255, 255, 255, 1);
+    border-color: var(--zone-color, var(--qres-primary));
+    transform: translateY(-2px);
+    box-shadow: var(--qres-shadow-md);
+    color: var(--zone-color, var(--qres-primary));
+  }
+
+  &.active {
+    background: var(--zone-color, var(--qres-primary));
+    color: white;
+    border-color: transparent;
+    box-shadow: var(--qres-shadow-md);
+    transform: translateY(-2px);
+
+    .zone-count {
+      color: rgba(255, 255, 255, 0.9);
+    }
+  }
+}
+
+// === КОМПАКТНЫЕ ФИЛЬТРЫ ===
+.filters-compact {
+  display: flex;
+  gap: 0.5rem;
+  align-items: center;
+}
+
+.filter-btn-compact {
+  position: relative;
+  width: 48px;
+  height: 48px;
+  border-radius: var(--qres-radius-md);
+  border: 2px solid transparent;
+  @include qres-glass-effect(0.8);
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  cursor: pointer;
+  transition: all var(--qres-transition-normal);
+  color: var(--qres-gray-500);
+  font-weight: 600;
+
+  i {
+    font-size: 1rem;
+    margin-bottom: 1px;
+  }
+
+  .filter-count {
+    font-size: 0.65rem;
+    font-weight: 700;
+    line-height: 1;
+  }
+
+  &:hover {
+    background: rgba(255, 255, 255, 1);
+    border-color: rgba(102, 126, 234, 0.3);
+    transform: translateY(-2px);
+    box-shadow: var(--qres-shadow-md);
+    color: var(--qres-primary);
+  }
+
+  &.active {
+    background: var(--qres-gradient-primary);
+    color: white;
+    border-color: transparent;
+    box-shadow: var(--qres-shadow-md);
+    transform: translateY(-2px);
+
+    .filter-count {
+      color: rgba(255, 255, 255, 0.9);
+    }
+  }
+}
+
+// === СЕТКА СТОЛИКОВ ===
+.tables-grid {
+  display: grid;
+  grid-template-columns: repeat(auto-fill, minmax(280px, 1fr));
+  gap: 1.5rem;
+  margin-top: 1.5rem;
+  animation: qres-fadeIn 0.4s ease-out;
+}
+
+// === КАРТОЧКИ СТОЛИКОВ ===
+.table-card {
+  @include qres-glass-effect();
+  border-radius: var(--qres-radius-xl);
+  border: 2px solid transparent;
+  box-shadow: var(--qres-shadow-md);
+  transition: all var(--qres-transition-normal);
+  cursor: pointer;
+  position: relative;
+  overflow: hidden;
+
+  &:hover {
+    transform: translateY(-5px);
+    box-shadow: var(--qres-shadow-xl);
+  }
+
+  &.table-pulse {
+    @include qres-pulse-animation($qres-warning);
+  }
+}
+
+.table-card-inner {
+  padding: 1.5rem;
+  position: relative;
+  z-index: 1;
+  display: flex;
+  flex-direction: column;
+  height: 100%;
+  min-height: 240px;
+  justify-content: space-between;
+}
+
+.table-status-indicator {
+  position: absolute;
+  top: 1rem;
+  right: 1rem;
+  width: 50px;
+  height: 50px;
+  border-radius: var(--qres-radius-full);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  font-size: 1.25rem;
+  color: white;
+
+  .table-status-free & {
+    background: var(--qres-gradient-success);
+  }
+
+  .table-status-occupied & {
+    background: var(--qres-gradient-info);
+  }
+
+  .table-status-qr-waiting & {
+    background: linear-gradient(45deg, #9b59b6, #e74c3c);
+    @include qres-pulse-animation(#9b59b6);
+  }
+
+  .table-status-ready & {
+    background: var(--qres-gradient-warning);
+    @include qres-pulse-animation($qres-warning);
+  }
+
+  .table-status-cleaning & {
+    background: linear-gradient(45deg, #95a5a6, #bdc3c7);
+
+    i {
+      animation: qres-spin 2s linear infinite;
+    }
+  }
+}
+
+.table-number {
+  font-size: 4rem;
+  font-weight: 900;
+  color: var(--qres-dark);
+  line-height: 1;
+  margin-bottom: 1rem;
+  text-align: center;
+}
+
+.table-info {
+  margin-bottom: 1rem;
+  flex-grow: 1;
+  display: flex;
+  flex-direction: column;
+  text-align: center;
+}
+
+.seats-count {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: 0.3rem;
+  font-weight: 600;
+  font-size: 0.9rem;
+  color: var(--qres-gray-500);
+  margin-bottom: 0.5rem;
+}
+
+.table-details {
+  .order-info-line {
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    gap: 0.4rem;
+    font-size: 0.85rem;
+    font-weight: 600;
+    color: #5a6c7d;
+    margin-bottom: 0.3rem;
+    flex-wrap: nowrap;
+
+    .separator {
+      color: var(--qres-gray-400);
+      font-weight: 400;
+    }
+  }
+
+  .ready-indicator {
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    gap: 0.3rem;
+    color: var(--qres-warning);
+    font-weight: 700;
+    font-size: 0.9rem;
+    text-align: center;
+    margin-top: 0.3rem;
+    animation: qres-bounce 2s infinite;
+  }
+
+  .cleaning-indicator {
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    gap: 0.3rem;
+    color: var(--qres-gray-400);
+    font-weight: 600;
+    font-size: 0.85rem;
+    text-align: center;
+  }
+}
+
+// === ДЕЙСТВИЯ СТОЛИКОВ ===
+.table-actions {
+  display: flex;
+  gap: 0.5rem;
+  justify-content: stretch;
+  margin-top: auto;
+  padding-top: 0.75rem;
+  width: 100%;
+}
+
+.action-btn {
+  flex: 1;
+  min-width: 0;
+  height: 82px;
+  border-radius: var(--qres-radius-lg);
+  border: none;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  font-size: 1.6rem;
+  color: white;
+  transition: all var(--qres-transition-normal);
+  cursor: pointer;
+
+  &:hover {
+    transform: translateY(-2px);
+    box-shadow: var(--qres-shadow-lg);
+  }
+
+  // Варианты действий
+  &.primary {
+    background: var(--qres-gradient-primary);
+  }
+
+  &.success {
+    background: var(--qres-gradient-success);
+  }
+
+  &.ready {
+    background: var(--qres-gradient-warning);
+  }
+
+  &.info {
+    background: var(--qres-gradient-info);
+  }
+
+  &.warning {
+    background: linear-gradient(45deg, #e67e22, #d35400);
+  }
+
+  &.qr-confirm {
+    background: linear-gradient(45deg, #9b59b6, #8e44ad);
+  }
+
+  &.secondary {
+    background: linear-gradient(45deg, #6c757d, #95a5a6);
+  }
+
+  &.qr-view {
+    background: linear-gradient(45deg, #e91e63, #f06292);
+  }
+
+  &.view-order {
+    background: linear-gradient(45deg, #1abc9c, #16a085);
+  }
+
+  &.print-bill {
+    background: linear-gradient(45deg, #8d4004, #a0522d);
+  }
+
+  &.finish-cleaning {
+    background: linear-gradient(45deg, #00b894, #00a085);
+  }
+}
+
+// === СТАТУСЫ СТОЛИКОВ ===
+.table-status-free {
+  border-color: rgba(39, 174, 96, 0.3);
+
+  &:hover {
+    border-color: rgba(39, 174, 96, 0.5);
+  }
+}
+
+.table-status-occupied {
+  border-color: rgba(52, 152, 219, 0.3);
+
+  &:hover {
+    border-color: rgba(52, 152, 219, 0.5);
+  }
+}
+
+.table-status-qr-waiting {
+  background: rgba(255, 255, 255, 0.98) !important;
+  border-color: rgba(155, 89, 182, 0.6);
+  animation: qr-purple-pulse 2s infinite;
+
+  &:hover {
+    border-color: rgba(155, 89, 182, 0.8);
+  }
+}
+
+.table-status-ready {
+  background: rgba(255, 255, 255, 0.98) !important;
+  border-color: rgba(243, 156, 18, 0.6);
+  animation: ready-orange-pulse 2s infinite;
+
+  &:hover {
+    border-color: rgba(243, 156, 18, 0.8);
+  }
+}
+
+.table-status-cleaning {
+  border-color: rgba(149, 165, 166, 0.3);
+
+  &:hover {
+    border-color: rgba(149, 165, 166, 0.5);
+  }
+}
+
+// === СПЕЦИАЛЬНЫЕ АНИМАЦИИ ===
+@keyframes qr-purple-pulse {
+  0%, 100% {
+    border-color: rgba(155, 89, 182, 0.6);
+    box-shadow: var(--qres-shadow-md), 0 0 0 0 rgba(155, 89, 182, 0.4);
+  }
+  50% {
+    border-color: rgba(155, 89, 182, 0.9);
+    box-shadow: var(--qres-shadow-md), 0 0 0 8px rgba(155, 89, 182, 0.2);
+  }
+}
+
+@keyframes ready-orange-pulse {
+  0%, 100% {
+    border-color: rgba(243, 156, 18, 0.6);
+    box-shadow: var(--qres-shadow-md), 0 0 0 0 rgba(243, 156, 18, 0.4);
+  }
+  50% {
+    border-color: rgba(243, 156, 18, 0.9);
+    box-shadow: var(--qres-shadow-md), 0 0 0 8px rgba(243, 156, 18, 0.2);
+  }
+}

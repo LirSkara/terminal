@@ -1,0 +1,434 @@
+// ==========================================
+// QRes OS 4 - Общие компоненты
+// ==========================================
+
+@import '../variables';
+
+// === КНОПКИ ===
+.qres-btn {
+  padding: 0.75rem 1.5rem;
+  border-radius: var(--qres-radius-md);
+  font-weight: 600;
+  font-size: 1rem;
+  transition: all var(--qres-transition-normal);
+  cursor: pointer;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  gap: 0.5rem;
+  border: none;
+
+  &:disabled {
+    opacity: 0.6;
+    cursor: not-allowed;
+    transform: none !important;
+  }
+
+  // Размеры
+  &-sm {
+    padding: 0.5rem 1rem;
+    font-size: 0.875rem;
+  }
+
+  &-lg {
+    padding: 1rem 2rem;
+    font-size: 1.125rem;
+  }
+
+  &-xl {
+    padding: 1.25rem 2.5rem;
+    font-size: 1.25rem;
+  }
+
+  // Варианты
+  &-primary {
+    @include qres-button-gradient($qres-primary, $qres-primary-dark);
+  }
+
+  &-success {
+    @include qres-button-gradient($qres-success, lighten($qres-success, 10%));
+  }
+
+  &-warning {
+    @include qres-button-gradient($qres-warning, lighten($qres-warning, 10%));
+  }
+
+  &-danger {
+    @include qres-button-gradient($qres-danger, darken($qres-danger, 10%));
+  }
+
+  &-info {
+    @include qres-button-gradient($qres-info, lighten($qres-info, 10%));
+  }
+
+  &-outline {
+    background: transparent;
+    border: 2px solid var(--qres-primary);
+    color: var(--qres-primary);
+
+    &:hover {
+      background: var(--qres-primary);
+      color: white;
+    }
+  }
+
+  &-ghost {
+    background: rgba(255, 255, 255, 0.1);
+    border: 1px solid rgba(255, 255, 255, 0.2);
+    color: white;
+
+    &:hover {
+      background: rgba(255, 255, 255, 0.2);
+    }
+  }
+}
+
+// === КАРТОЧКИ ===
+.qres-card {
+  @include qres-glass-effect();
+  border-radius: var(--qres-radius-lg);
+  padding: var(--qres-card-padding);
+  box-shadow: var(--qres-shadow-md);
+  @include qres-card-hover();
+
+  &-header {
+    margin-bottom: 1.5rem;
+    padding-bottom: 1rem;
+    border-bottom: 1px solid rgba(0, 0, 0, 0.1);
+
+    .qres-card-title {
+      font-size: 1.5rem;
+      font-weight: 700;
+      color: var(--qres-dark);
+      margin: 0;
+    }
+
+    .qres-card-subtitle {
+      color: var(--qres-gray-600);
+      margin: 0.5rem 0 0 0;
+    }
+  }
+
+  &-body {
+    flex: 1;
+  }
+
+  &-footer {
+    margin-top: 1.5rem;
+    padding-top: 1rem;
+    border-top: 1px solid rgba(0, 0, 0, 0.1);
+    display: flex;
+    justify-content: flex-end;
+    gap: 0.75rem;
+  }
+
+  // Варианты карточек
+  &-elevated {
+    box-shadow: var(--qres-shadow-lg);
+
+    &:hover {
+      box-shadow: var(--qres-shadow-xl);
+    }
+  }
+
+  &-borderless {
+    border: none;
+  }
+
+  &-compact {
+    padding: 1rem;
+  }
+}
+
+// === ФОРМЫ ===
+.qres-form {
+  &-group {
+    margin-bottom: 1.5rem;
+  }
+
+  &-label {
+    display: block;
+    margin-bottom: 0.5rem;
+    font-weight: 600;
+    color: var(--qres-dark);
+  }
+
+  &-control {
+    width: 100%;
+    padding: 0.75rem 1rem;
+    border: 2px solid var(--qres-gray-200);
+    border-radius: var(--qres-radius-md);
+    font-size: 1rem;
+    transition: all var(--qres-transition-normal);
+    background: white;
+
+    &:focus {
+      outline: none;
+      border-color: var(--qres-primary);
+      box-shadow: 0 0 0 3px rgba(102, 126, 234, 0.1);
+    }
+
+    &:disabled {
+      background-color: var(--qres-light);
+      color: var(--qres-gray-500);
+      cursor: not-allowed;
+      opacity: 0.7;
+    }
+  }
+
+  &-select {
+    background-image: url("data:image/svg+xml,%3csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 16 16'%3e%3cpath fill='none' stroke='%23343a40' stroke-linecap='round' stroke-linejoin='round' stroke-width='2' d='m1 6 7 7 7-7'/%3e%3c/svg%3e");
+    background-repeat: no-repeat;
+    background-position: right 1rem center;
+    background-size: 16px 12px;
+    padding-right: 3rem;
+    appearance: none;
+  }
+
+  &-input-group {
+    position: relative;
+    display: flex;
+    align-items: center;
+
+    .qres-input-icon {
+      position: absolute;
+      left: 1rem;
+      z-index: 3;
+      color: var(--qres-gray-500);
+    }
+
+    .qres-form-control {
+      padding-left: 3rem;
+    }
+  }
+}
+
+// === МОДАЛЬНЫЕ ОКНА ===
+.qres-modal {
+  position: fixed;
+  top: 0;
+  left: 0;
+  width: 100%;
+  height: 100%;
+  background: var(--qres-overlay-bg);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  z-index: var(--qres-z-modal);
+  backdrop-filter: blur(5px);
+
+  &-dialog {
+    @include qres-glass-effect();
+    border-radius: var(--qres-radius-xl);
+    max-width: 90vw;
+    max-height: 90vh;
+    overflow: hidden;
+    animation: qres-scaleIn var(--qres-transition-normal);
+  }
+
+  &-header {
+    padding: 1.5rem;
+    border-bottom: 1px solid rgba(0, 0, 0, 0.1);
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+
+    .qres-modal-title {
+      font-size: 1.25rem;
+      font-weight: 700;
+      color: var(--qres-dark);
+      margin: 0;
+    }
+
+    .qres-modal-close {
+      background: none;
+      border: none;
+      font-size: 1.5rem;
+      color: var(--qres-gray-500);
+      cursor: pointer;
+      padding: 0;
+      width: 32px;
+      height: 32px;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      border-radius: var(--qres-radius-sm);
+      transition: all var(--qres-transition-fast);
+
+      &:hover {
+        background: rgba(0, 0, 0, 0.1);
+        color: var(--qres-dark);
+      }
+    }
+  }
+
+  &-body {
+    padding: 1.5rem;
+    max-height: 60vh;
+    overflow-y: auto;
+  }
+
+  &-footer {
+    padding: 1rem 1.5rem;
+    border-top: 1px solid rgba(0, 0, 0, 0.1);
+    display: flex;
+    justify-content: flex-end;
+    gap: 0.75rem;
+  }
+}
+
+// === УВЕДОМЛЕНИЯ ===
+.qres-alert {
+  padding: 1rem 1.5rem;
+  border-radius: var(--qres-radius-md);
+  border: 1px solid transparent;
+  display: flex;
+  align-items: center;
+  gap: 0.75rem;
+
+  &-success {
+    background: rgba(39, 174, 96, 0.1);
+    border-color: var(--qres-success);
+    color: darken($qres-success, 20%);
+  }
+
+  &-warning {
+    background: rgba(243, 156, 18, 0.1);
+    border-color: var(--qres-warning);
+    color: darken($qres-warning, 20%);
+  }
+
+  &-danger {
+    background: rgba(231, 76, 60, 0.1);
+    border-color: var(--qres-danger);
+    color: darken($qres-danger, 20%);
+  }
+
+  &-info {
+    background: rgba(52, 152, 219, 0.1);
+    border-color: var(--qres-info);
+    color: darken($qres-info, 20%);
+  }
+}
+
+// === ЗАГРУЗЧИКИ ===
+.qres-spinner {
+  width: 20px;
+  height: 20px;
+  border: 2px solid rgba(255, 255, 255, 0.3);
+  border-top: 2px solid currentColor;
+  border-radius: 50%;
+  animation: qres-spin 1s linear infinite;
+
+  &-lg {
+    width: 40px;
+    height: 40px;
+    border-width: 4px;
+  }
+}
+
+// === ИНДИКАТОРЫ СТАТУСА ===
+.qres-status-indicator {
+  width: 12px;
+  height: 12px;
+  border-radius: 50%;
+  display: inline-block;
+
+  &-success {
+    background: var(--qres-success);
+  }
+
+  &-warning {
+    background: var(--qres-warning);
+  }
+
+  &-danger {
+    background: var(--qres-danger);
+  }
+
+  &-info {
+    background: var(--qres-info);
+  }
+
+  &-pulse {
+    animation: qres-bounce 1s infinite;
+  }
+}
+
+// === БЕЙДЖИ ===
+.qres-badge {
+  display: inline-flex;
+  align-items: center;
+  padding: 0.25rem 0.75rem;
+  font-size: 0.75rem;
+  font-weight: 600;
+  border-radius: var(--qres-radius-sm);
+
+  &-primary {
+    background: var(--qres-primary);
+    color: white;
+  }
+
+  &-success {
+    background: var(--qres-success);
+    color: white;
+  }
+
+  &-warning {
+    background: var(--qres-warning);
+    color: white;
+  }
+
+  &-danger {
+    background: var(--qres-danger);
+    color: white;
+  }
+
+  &-info {
+    background: var(--qres-info);
+    color: white;
+  }
+
+  &-outline {
+    background: transparent;
+    border: 1px solid currentColor;
+  }
+}
+
+// === ВКЛАДКИ ===
+.qres-tabs {
+  display: flex;
+  gap: 0.5rem;
+  margin-bottom: 1.5rem;
+
+  &-nav {
+    display: flex;
+    background: var(--qres-light);
+    border-radius: var(--qres-radius-md);
+    padding: 0.25rem;
+  }
+
+  &-item {
+    flex: 1;
+    padding: 0.75rem 1rem;
+    border: none;
+    background: transparent;
+    color: var(--qres-gray-600);
+    font-weight: 500;
+    border-radius: var(--qres-radius-sm);
+    transition: all var(--qres-transition-normal);
+    cursor: pointer;
+
+    &.active {
+      background: var(--qres-primary);
+      color: white;
+      transform: translateY(-1px);
+      box-shadow: 0 4px 12px rgba(102, 126, 234, 0.3);
+    }
+
+    &:hover:not(.active) {
+      background: rgba(102, 126, 234, 0.1);
+      color: var(--qres-primary);
+    }
+  }
+}

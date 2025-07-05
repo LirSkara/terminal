@@ -1,0 +1,287 @@
+// ==========================================
+// QRes OS 4 - Общие переменные и константы
+// ==========================================
+
+// === ЦВЕТОВАЯ СХЕМА ===
+:root {
+  // Основные цвета бренда
+  --qres-primary: #667eea;
+  --qres-primary-dark: #764ba2;
+  --qres-secondary: #6c757d;
+
+  // Семантические цвета
+  --qres-success: #27ae60;
+  --qres-success-light: #2ecc71;
+  --qres-warning: #f39c12;
+  --qres-warning-light: #f4d03f;
+  --qres-danger: #e74c3c;
+  --qres-danger-light: #c0392b;
+  --qres-info: #3498db;
+  --qres-info-light: #5dade2;
+
+  // Цвета зон
+  --qres-zone-hall: #3498db;
+  --qres-zone-terrace: #27ae60;
+  --qres-zone-vip: #f39c12;
+  --qres-zone-bar: #9b59b6;
+  --qres-zone-all: #6c757d;
+
+  // Статусы столиков
+  --qres-table-free: #27ae60;
+  --qres-table-occupied: #3498db;
+  --qres-table-ready: #f39c12;
+  --qres-table-cleaning: #95a5a6;
+  --qres-table-qr-waiting: #9b59b6;
+
+  // Нейтральные цвета
+  --qres-white: #ffffff;
+  --qres-light: #f8f9fa;
+  --qres-gray-100: #e9ecef;
+  --qres-gray-200: #dee2e6;
+  --qres-gray-300: #ced4da;
+  --qres-gray-400: #adb5bd;
+  --qres-gray-500: #6c757d;
+  --qres-gray-600: #495057;
+  --qres-gray-700: #343a40;
+  --qres-gray-800: #212529;
+  --qres-dark: #2c3e50;
+
+  // Фоны
+  --qres-background: #ecf0f1;
+  --qres-gradient-primary: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+  --qres-gradient-success: linear-gradient(45deg, #27ae60, #2ecc71);
+  --qres-gradient-warning: linear-gradient(45deg, #f39c12, #f4d03f);
+  --qres-gradient-danger: linear-gradient(45deg, #e74c3c, #c0392b);
+  --qres-gradient-info: linear-gradient(45deg, #3498db, #2980b9);
+
+  // Прозрачности
+  --qres-glass-bg: rgba(255, 255, 255, 0.95);
+  --qres-glass-border: rgba(255, 255, 255, 0.2);
+  --qres-overlay-bg: rgba(0, 0, 0, 0.5);
+
+  // Тени
+  --qres-shadow-sm: 0 2px 8px rgba(0, 0, 0, 0.1);
+  --qres-shadow-md: 0 8px 32px rgba(0, 0, 0, 0.1);
+  --qres-shadow-lg: 0 12px 40px rgba(0, 0, 0, 0.15);
+  --qres-shadow-xl: 0 20px 60px rgba(0, 0, 0, 0.15);
+
+  // Радиусы скругления
+  --qres-radius-sm: 8px;
+  --qres-radius-md: 12px;
+  --qres-radius-lg: 16px;
+  --qres-radius-xl: 20px;
+  --qres-radius-full: 50%;
+
+  // Размеры
+  --qres-header-height: 80px;
+  --qres-sidebar-width: 280px;
+  --qres-card-padding: 1.5rem;
+  --qres-section-padding: 2rem;
+
+  // Переходы
+  --qres-transition-fast: 0.2s ease;
+  --qres-transition-normal: 0.3s ease;
+  --qres-transition-slow: 0.5s ease;
+
+  // Z-индексы
+  --qres-z-dropdown: 1000;
+  --qres-z-sticky: 1020;
+  --qres-z-fixed: 1030;
+  --qres-z-modal-backdrop: 1040;
+  --qres-z-modal: 1050;
+  --qres-z-popover: 1060;
+  --qres-z-tooltip: 1070;
+  --qres-z-toast: 9999;
+}
+
+// === SCSS ПЕРЕМЕННЫЕ ===
+$qres-primary: #667eea;
+$qres-primary-dark: #764ba2;
+$qres-secondary: #6c757d;
+
+$qres-success: #27ae60;
+$qres-warning: #f39c12;
+$qres-danger: #e74c3c;
+$qres-info: #3498db;
+
+$qres-white: #ffffff;
+$qres-light: #f8f9fa;
+$qres-dark: #2c3e50;
+
+// Брейкпоинты
+$qres-breakpoints: (
+  xs: 0,
+  sm: 576px,
+  md: 768px,
+  lg: 992px,
+  xl: 1200px,
+  xxl: 1400px
+);
+
+// === МИКСИНЫ ===
+@mixin qres-glass-effect($opacity: 0.95) {
+  background: rgba(255, 255, 255, $opacity);
+  backdrop-filter: blur(10px);
+  border: 1px solid rgba(255, 255, 255, 0.2);
+}
+
+@mixin qres-card-hover() {
+  transition: all var(--qres-transition-normal);
+
+  &:hover {
+    transform: translateY(-2px);
+    box-shadow: var(--qres-shadow-lg);
+  }
+}
+
+@mixin qres-button-gradient($color1, $color2) {
+  background: linear-gradient(45deg, $color1, $color2);
+  border: none;
+  color: white;
+  font-weight: 600;
+  transition: all var(--qres-transition-normal);
+
+  &:hover {
+    transform: translateY(-2px);
+    box-shadow: 0 8px 25px rgba($color1, 0.3);
+  }
+}
+
+@mixin qres-pulse-animation($color) {
+  @keyframes qres-pulse-#{str-slice(inspect($color), 2)} {
+    0%, 100% {
+      box-shadow: 0 0 0 0 rgba($color, 0.7);
+    }
+    50% {
+      box-shadow: 0 0 0 10px rgba($color, 0);
+    }
+  }
+
+  animation: qres-pulse-#{str-slice(inspect($color), 2)} 2s infinite;
+}
+
+@mixin qres-responsive($breakpoint) {
+  @if map-has-key($qres-breakpoints, $breakpoint) {
+    @media (min-width: map-get($qres-breakpoints, $breakpoint)) {
+      @content;
+    }
+  }
+}
+
+// === АНИМАЦИИ ===
+@keyframes qres-fadeIn {
+  from {
+    opacity: 0;
+  }
+  to {
+    opacity: 1;
+  }
+}
+
+@keyframes qres-slideUp {
+  from {
+    transform: translateY(20px);
+    opacity: 0;
+  }
+  to {
+    transform: translateY(0);
+    opacity: 1;
+  }
+}
+
+@keyframes qres-slideDown {
+  from {
+    transform: translateY(-20px);
+    opacity: 0;
+  }
+  to {
+    transform: translateY(0);
+    opacity: 1;
+  }
+}
+
+@keyframes qres-scaleIn {
+  from {
+    transform: scale(0.9);
+    opacity: 0;
+  }
+  to {
+    transform: scale(1);
+    opacity: 1;
+  }
+}
+
+@keyframes qres-spin {
+  from {
+    transform: rotate(0deg);
+  }
+  to {
+    transform: rotate(360deg);
+  }
+}
+
+@keyframes qres-bounce {
+  0%, 20%, 53%, 80%, 100% {
+    animation-timing-function: cubic-bezier(0.215, 0.610, 0.355, 1.000);
+    transform: translate3d(0,0,0);
+  }
+  40%, 43% {
+    animation-timing-function: cubic-bezier(0.755, 0.050, 0.855, 0.060);
+    transform: translate3d(0, -30px, 0);
+  }
+  70% {
+    animation-timing-function: cubic-bezier(0.755, 0.050, 0.855, 0.060);
+    transform: translate3d(0, -15px, 0);
+  }
+  90% {
+    transform: translate3d(0,-4px,0);
+  }
+}
+
+// === УТИЛИТАРНЫЕ КЛАССЫ ===
+.qres-glass {
+  @include qres-glass-effect();
+}
+
+.qres-card-hover {
+  @include qres-card-hover();
+}
+
+.qres-shadow-sm { box-shadow: var(--qres-shadow-sm); }
+.qres-shadow-md { box-shadow: var(--qres-shadow-md); }
+.qres-shadow-lg { box-shadow: var(--qres-shadow-lg); }
+.qres-shadow-xl { box-shadow: var(--qres-shadow-xl); }
+
+.qres-radius-sm { border-radius: var(--qres-radius-sm); }
+.qres-radius-md { border-radius: var(--qres-radius-md); }
+.qres-radius-lg { border-radius: var(--qres-radius-lg); }
+.qres-radius-xl { border-radius: var(--qres-radius-xl); }
+
+.qres-transition-fast { transition: all var(--qres-transition-fast); }
+.qres-transition-normal { transition: all var(--qres-transition-normal); }
+.qres-transition-slow { transition: all var(--qres-transition-slow); }
+
+// === АНИМАЦИОННЫЕ КЛАССЫ ===
+.qres-fade-in {
+  animation: qres-fadeIn var(--qres-transition-normal);
+}
+
+.qres-slide-up {
+  animation: qres-slideUp var(--qres-transition-normal);
+}
+
+.qres-slide-down {
+  animation: qres-slideDown var(--qres-transition-normal);
+}
+
+.qres-scale-in {
+  animation: qres-scaleIn var(--qres-transition-normal);
+}
+
+.qres-spin {
+  animation: qres-spin 1s linear infinite;
+}
+
+.qres-bounce {
+  animation: qres-bounce 1s;
+}

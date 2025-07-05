@@ -1,0 +1,167 @@
+// ==========================================
+// QRes OS 4 - Главный файл стилей
+// ==========================================
+
+// === ПЕРЕМЕННЫЕ И МИКСИНЫ ===
+@import 'variables';
+
+// === ОБЩИЕ КОМПОНЕНТЫ ===
+@import 'components/common';
+
+// === СТИЛИ ПРЕДСТАВЛЕНИЙ ===
+@import 'views/login';
+@import 'views/dashboard';
+
+// === ГЛОБАЛЬНЫЕ СТИЛИ ===
+:root {
+  /* Переопределяем Bootstrap переменные */
+  --bs-primary: var(--qres-primary);
+  --bs-success: var(--qres-success);
+  --bs-warning: var(--qres-warning);
+  --bs-danger: var(--qres-danger);
+  --bs-info: var(--qres-info);
+  --bs-body-bg: var(--qres-background);
+}
+
+* {
+  box-sizing: border-box;
+}
+
+body {
+  font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', 'Roboto', 'Oxygen',
+    'Ubuntu', 'Cantarell', 'Fira Sans', 'Droid Sans', 'Helvetica Neue',
+    sans-serif;
+  -webkit-font-smoothing: antialiased;
+  -moz-osx-font-smoothing: grayscale;
+  margin: 0;
+  padding: 0;
+  line-height: 1.6;
+  color: var(--qres-dark);
+}
+
+// === ОСНОВНОЙ КОНТЕЙНЕР ПРИЛОЖЕНИЯ ===
+.qres-app {
+  min-height: 100vh;
+  display: flex;
+  flex-direction: column;
+}
+
+.main-content {
+  flex: 1;
+  padding: 1rem;
+  background: var(--qres-gradient-primary);
+  position: relative;
+  min-height: 100vh;
+
+  &::before {
+    content: '';
+    position: absolute;
+    top: 0;
+    left: 0;
+    right: 0;
+    bottom: 0;
+    background: url('data:image/svg+xml,<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 100 100"><defs><pattern id="grid" width="10" height="10" patternUnits="userSpaceOnUse"><path d="M 10 0 L 0 0 0 10" fill="none" stroke="rgba(255,255,255,0.1)" stroke-width="0.5"/></pattern></defs><rect width="100" height="100" fill="url(%23grid)"/></svg>');
+    opacity: 0.3;
+    pointer-events: none;
+  }
+
+  &.login-page {
+    padding: 0;
+  }
+}
+
+// === УТИЛИТАРНЫЕ КЛАССЫ ===
+.text-shadow {
+  text-shadow: 0 2px 4px rgba(0, 0, 0, 0.1);
+}
+
+.text-shadow-lg {
+  text-shadow: 0 4px 8px rgba(0, 0, 0, 0.3);
+}
+
+.backdrop-blur {
+  backdrop-filter: blur(10px);
+}
+
+.backdrop-blur-sm {
+  backdrop-filter: blur(5px);
+}
+
+.backdrop-blur-lg {
+  backdrop-filter: blur(20px);
+}
+
+// === СТИЛИ ДЛЯ СКРОЛЛБАРА ===
+::-webkit-scrollbar {
+  width: 8px;
+  height: 8px;
+}
+
+::-webkit-scrollbar-track {
+  background: rgba(255, 255, 255, 0.1);
+  border-radius: 4px;
+}
+
+::-webkit-scrollbar-thumb {
+  background: rgba(0, 0, 0, 0.2);
+  border-radius: 4px;
+
+  &:hover {
+    background: rgba(0, 0, 0, 0.3);
+  }
+}
+
+// === СТИЛИ ДЛЯ ФОКУСА ===
+*:focus {
+  outline: none;
+}
+
+.btn:focus,
+button:focus,
+input:focus,
+select:focus,
+textarea:focus {
+  box-shadow: 0 0 0 3px rgba(102, 126, 234, 0.25) !important;
+}
+
+// === СТИЛИ ПЕЧАТИ ===
+@media print {
+  .no-print {
+    display: none !important;
+  }
+
+  body {
+    background: white !important;
+    color: black !important;
+  }
+
+  .qres-card,
+  .table-card {
+    background: white !important;
+    border: 1px solid #ccc !important;
+    box-shadow: none !important;
+  }
+}
+
+// === ТЕМНАЯ ТЕМА (ЕСЛИ ПОТРЕБУЕТСЯ) ===
+@media (prefers-color-scheme: dark) {
+  .qres-app.auto-theme {
+    --qres-white: #1a1a1a;
+    --qres-light: #2d2d2d;
+    --qres-dark: #ffffff;
+    --qres-gray-100: #333333;
+    --qres-gray-200: #404040;
+    --qres-gray-300: #4d4d4d;
+    --qres-gray-400: #666666;
+    --qres-gray-500: #808080;
+    --qres-gray-600: #999999;
+    --qres-gray-700: #b3b3b3;
+    --qres-gray-800: #cccccc;
+
+    .qres-card,
+    .table-card {
+      background: rgba(26, 26, 26, 0.95);
+      color: white;
+    }
+  }
+}
