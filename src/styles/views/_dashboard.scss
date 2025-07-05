@@ -108,9 +108,10 @@
   @extend .qres-btn-primary;
   @extend .qres-btn-xl;
   box-shadow: 0 6px 20px rgba(102, 126, 234, 0.3);
-
+  padding: 0.5rem 1.5rem;
+  font-size: 1rem;
   i {
-    font-size: 1.3rem;
+    font-size: 2rem;
   }
 }
 
