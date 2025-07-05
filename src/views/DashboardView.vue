@@ -128,64 +128,64 @@
         </div>
 
         <!-- Сетка столиков -->
-        <div class="tables-grid" :key="`zone-${activeZone}-filter-${activeFilter}`">
+        <div class="dashboard-tables-grid" :key="`zone-${activeZone}-filter-${activeFilter}`">
           <div
             v-for="table in filteredTables"
             :key="table.id"
             @click="openTable(table)"
             :class="[
-              'table-card',
-              `table-status-${table.status}`,
-              { 'table-pulse': table.status === 'ready' }
+              'dashboard-table-card',
+              `dashboard-table-status-${table.status}`,
+              { 'dashboard-table-pulse': table.status === 'ready' }
             ]"
           >
-            <div class="table-card-inner">
+            <div class="dashboard-table-card-inner">
               <!-- Статус индикатор -->
-              <div class="table-status-indicator">
+              <div class="dashboard-table-status-indicator">
                 <i :class="getTableIcon(table.status)"></i>
               </div>
 
               <!-- Номер столика -->
-              <div class="table-number">
+              <div class="dashboard-table-number">
                 {{ table.number }}
               </div>
 
               <!-- Информация о столике -->
-              <div class="table-info">
-                <div class="seats-count">
+              <div class="dashboard-table-info">
+                <div class="dashboard-seats-count">
                   <i class="bi bi-people-fill"></i>
                   {{ table.seats }} мест
                 </div>
 
                 <!-- Дополнительная информация в зависимости от статуса -->
-                <div class="table-details">
+                <div class="dashboard-table-details">
                   <template v-if="table.status === 'occupied'">
-                    <div class="order-info-line">
+                    <div class="dashboard-order-info-line">
                       <i class="bi bi-clock"></i>
                       {{ formatTime(table.orderTime) }}
-                      <span class="separator">•</span>
+                      <span class="dashboard-separator">•</span>
                       {{ table.orderAmount }}₽
                     </div>
                   </template>
 
                   <template v-if="table.status === 'qr-waiting'">
-                    <div class="order-info-line">
+                    <div class="dashboard-order-info-line">
                       <i class="bi bi-clock"></i>
                       {{ formatTime(table.orderTime) }}
-                      <span class="separator">•</span>
+                      <span class="dashboard-separator">•</span>
                       {{ table.orderAmount }}₽
                     </div>
                   </template>
 
                   <template v-if="table.status === 'ready'">
-                    <div class="ready-indicator">
+                    <div class="dashboard-ready-indicator">
                       <i class="bi bi-check-circle-fill"></i>
                       Заказ готов!
                     </div>
                   </template>
 
                   <template v-if="table.status === 'cleaning'">
-                    <div class="cleaning-indicator">
+                    <div class="dashboard-cleaning-indicator">
                       <i class="bi bi-arrow-clockwise"></i>
                       Уборка
                     </div>
@@ -194,11 +194,11 @@
               </div>
 
               <!-- Быстрые действия -->
-              <div class="table-actions" @click.stop>
+              <div class="dashboard-table-actions" @click.stop>
                 <button
                   v-if="table.status === 'free'"
                   @click="openTable(table)"
-                  class="action-btn primary"
+                  class="dashboard-action-btn dashboard-primary"
                   title="Открыть столик"
                 >
                   <i class="bi bi-plus-lg"></i>
@@ -207,7 +207,7 @@
                 <button
                   v-if="table.status === 'occupied'"
                   @click="addToOrder(table)"
-                  class="action-btn success"
+                  class="dashboard-action-btn dashboard-success"
                   title="Добавить к заказу"
                 >
                   <i class="bi bi-plus"></i>
@@ -216,7 +216,7 @@
                 <button
                   v-if="table.status === 'occupied'"
                   @click="viewOrder(table)"
-                  class="action-btn view-order"
+                  class="dashboard-action-btn dashboard-view-order"
                   title="Посмотреть заказ"
                 >
                   <i class="bi bi-eye"></i>
@@ -225,7 +225,7 @@
                 <button
                   v-if="table.status === 'qr-waiting'"
                   @click="confirmQrOrder(table)"
-                  class="action-btn qr-confirm"
+                  class="dashboard-action-btn dashboard-qr-confirm"
                   title="Подтвердить QR заказ"
                 >
                   <i class="bi bi-check-lg"></i>
@@ -234,7 +234,7 @@
                 <button
                   v-if="table.status === 'qr-waiting'"
                   @click="viewQrOrder(table)"
-                  class="action-btn qr-view"
+                  class="dashboard-action-btn dashboard-qr-view"
                   title="Посмотреть заказ"
                 >
                   <i class="bi bi-eye"></i>
@@ -243,7 +243,7 @@
                 <button
                   v-if="table.status === 'ready'"
                   @click="serveOrder(table)"
-                  class="action-btn ready"
+                  class="dashboard-action-btn dashboard-ready"
                   title="Подать заказ"
                 >
                   <i class="bi bi-check"></i>
@@ -252,7 +252,7 @@
                 <button
                   v-if="table.status === 'occupied' || table.status === 'qr-waiting'"
                   @click="printBill(table)"
-                  class="action-btn print-bill"
+                  class="dashboard-action-btn dashboard-print-bill"
                   title="Счет"
                 >
                   <i class="bi bi-receipt"></i>
@@ -261,7 +261,7 @@
                 <button
                   v-if="table.status === 'cleaning'"
                   @click="closeTable(table)"
-                  class="action-btn finish-cleaning"
+                  class="dashboard-action-btn dashboard-finish-cleaning"
                   title="Закрыть столик"
                 >
                   <i class="bi bi-check2-all"></i>
@@ -541,6 +541,7 @@ const showAllReady = () => {
 }
 
 const showWaitingTables = () => {
+  activeFilter.value = 'long-waiting'
   console.log('Показать долго ждущие столики')
   // Фильтруем столики, которые долго ждут
   const now = new Date()

@@ -330,7 +330,7 @@
 }
 
 // === СЕТКА СТОЛИКОВ ===
-.tables-grid {
+.dashboard-tables-grid {
   display: grid;
   grid-template-columns: repeat(auto-fill, minmax(280px, 1fr));
   gap: 1.5rem;
@@ -339,7 +339,7 @@
 }
 
 // === КАРТОЧКИ СТОЛИКОВ ===
-.table-card {
+.dashboard-table-card {
   @include qres-glass-effect();
   border-radius: var(--qres-radius-xl);
   border: 2px solid transparent;
@@ -354,12 +354,12 @@
     box-shadow: var(--qres-shadow-xl);
   }
 
-  &.table-pulse {
+  &.dashboard-table-pulse {
     @include qres-pulse-animation($qres-warning);
   }
 }
 
-.table-card-inner {
+.dashboard-table-card-inner {
   padding: 1.5rem;
   position: relative;
   z-index: 1;
@@ -370,7 +370,7 @@
   justify-content: space-between;
 }
 
-.table-status-indicator {
+.dashboard-table-status-indicator {
   position: absolute;
   top: 1rem;
   right: 1rem;
@@ -383,25 +383,25 @@
   font-size: 1.25rem;
   color: white;
 
-  .table-status-free & {
+  .dashboard-table-status-free & {
     background: var(--qres-gradient-success);
   }
 
-  .table-status-occupied & {
+  .dashboard-table-status-occupied & {
     background: var(--qres-gradient-info);
   }
 
-  .table-status-qr-waiting & {
+  .dashboard-table-status-qr-waiting & {
     background: linear-gradient(45deg, #9b59b6, #e74c3c);
     @include qres-pulse-animation(#9b59b6);
   }
 
-  .table-status-ready & {
+  .dashboard-table-status-ready & {
     background: var(--qres-gradient-warning);
     @include qres-pulse-animation($qres-warning);
   }
 
-  .table-status-cleaning & {
+  .dashboard-table-status-cleaning & {
     background: linear-gradient(45deg, #95a5a6, #bdc3c7);
 
     i {
@@ -410,7 +410,7 @@
   }
 }
 
-.table-number {
+.dashboard-table-number {
   font-size: 4rem;
   font-weight: 900;
   color: var(--qres-dark);
@@ -419,7 +419,7 @@
   text-align: center;
 }
 
-.table-info {
+.dashboard-table-info {
   margin-bottom: 1rem;
   flex-grow: 1;
   display: flex;
@@ -427,7 +427,7 @@
   text-align: center;
 }
 
-.seats-count {
+.dashboard-seats-count {
   display: flex;
   align-items: center;
   justify-content: center;
@@ -438,8 +438,8 @@
   margin-bottom: 0.5rem;
 }
 
-.table-details {
-  .order-info-line {
+.dashboard-table-details {
+  .dashboard-order-info-line {
     display: flex;
     align-items: center;
     justify-content: center;
@@ -450,13 +450,13 @@
     margin-bottom: 0.3rem;
     flex-wrap: nowrap;
 
-    .separator {
+    .dashboard-separator {
       color: var(--qres-gray-400);
       font-weight: 400;
     }
   }
 
-  .ready-indicator {
+  .dashboard-ready-indicator {
     display: flex;
     align-items: center;
     justify-content: center;
@@ -469,7 +469,7 @@
     animation: qres-gentle-pulse 2s ease-in-out infinite;
   }
 
-  .cleaning-indicator {
+  .dashboard-cleaning-indicator {
     display: flex;
     align-items: center;
     justify-content: center;
@@ -482,7 +482,7 @@
 }
 
 // === ДЕЙСТВИЯ СТОЛИКОВ ===
-.table-actions {
+.dashboard-table-actions {
   display: flex;
   gap: 0.5rem;
   justify-content: stretch;
@@ -491,7 +491,7 @@
   width: 100%;
 }
 
-.action-btn {
+.dashboard-action-btn {
   flex: 1;
   min-width: 0;
   height: 82px;
@@ -511,53 +511,53 @@
   }
 
   // Варианты действий
-  &.primary {
+  &.dashboard-primary {
     background: var(--qres-gradient-primary);
   }
 
-  &.success {
+  &.dashboard-success {
     background: var(--qres-gradient-success);
   }
 
-  &.ready {
+  &.dashboard-ready {
     background: var(--qres-gradient-warning);
   }
 
-  &.info {
+  &.dashboard-info {
     background: var(--qres-gradient-info);
   }
 
-  &.warning {
+  &.dashboard-warning {
     background: linear-gradient(45deg, #e67e22, #d35400);
   }
 
-  &.qr-confirm {
+  &.dashboard-qr-confirm {
     background: linear-gradient(45deg, #9b59b6, #8e44ad);
   }
 
-  &.secondary {
+  &.dashboard-secondary {
     background: linear-gradient(45deg, #6c757d, #95a5a6);
   }
 
-  &.qr-view {
+  &.dashboard-qr-view {
     background: linear-gradient(45deg, #e91e63, #f06292);
   }
 
-  &.view-order {
+  &.dashboard-view-order {
     background: linear-gradient(45deg, #1abc9c, #16a085);
   }
 
-  &.print-bill {
+  &.dashboard-print-bill {
     background: linear-gradient(45deg, #8d4004, #a0522d);
   }
 
-  &.finish-cleaning {
+  &.dashboard-finish-cleaning {
     background: linear-gradient(45deg, #00b894, #00a085);
   }
 }
 
 // === СТАТУСЫ СТОЛИКОВ ===
-.table-status-free {
+.dashboard-table-status-free {
   border-color: rgba(39, 174, 96, 0.3);
 
   &:hover {
@@ -565,7 +565,7 @@
   }
 }
 
-.table-status-occupied {
+.dashboard-table-status-occupied {
   border-color: rgba(52, 152, 219, 0.3);
 
   &:hover {
@@ -573,7 +573,7 @@
   }
 }
 
-.table-status-qr-waiting {
+.dashboard-table-status-qr-waiting {
   background: rgba(255, 255, 255, 0.98) !important;
   border-color: rgba(155, 89, 182, 0.6);
   animation: qr-purple-pulse 2s infinite;
@@ -583,7 +583,7 @@
   }
 }
 
-.table-status-ready {
+.dashboard-table-status-ready {
   background: rgba(255, 255, 255, 0.98) !important;
   border-color: rgba(243, 156, 18, 0.6);
   animation: ready-orange-pulse 2s infinite;
@@ -593,7 +593,7 @@
   }
 }
 
-.table-status-cleaning {
+.dashboard-table-status-cleaning {
   border-color: rgba(149, 165, 166, 0.3);
 
   &:hover {
