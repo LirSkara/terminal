@@ -87,15 +87,17 @@ export interface DishVariation {
   id: number
   dish_id: number
   name: string
-  description: string
-  price: number
-  weight: number
-  calories: number
-  image_url?: string
+  description?: string | null
+  price: string | number // Цена приходит как строка, но лучше поддерживать оба типа
+  weight?: number | null
+  calories?: number | null
+  image_url?: string | null
   sku: string
   is_available: boolean
   is_default: boolean
   sort_order: number
+  created_at: string
+  updated_at: string
 }
 
 // Полное меню с вложенными данными
@@ -547,11 +549,11 @@ export interface UpdateDishRequest {
 
 export interface CreateDishVariationRequest {
   name: string
-  description: string
-  price: number
-  weight: number
-  calories: number
-  image_url?: string
+  description?: string | null
+  price: string | number // Поддерживаем оба типа
+  weight?: number | null
+  calories?: number | null
+  image_url?: string | null
   sku: string
   is_default?: boolean
   sort_order: number
@@ -559,11 +561,11 @@ export interface CreateDishVariationRequest {
 
 export interface UpdateDishVariationRequest {
   name?: string
-  description?: string
-  price?: number
-  weight?: number
-  calories?: number
-  image_url?: string
+  description?: string | null
+  price?: string | number
+  weight?: number | null
+  calories?: number | null
+  image_url?: string | null
   sku?: string
   is_default?: boolean
   sort_order?: number
