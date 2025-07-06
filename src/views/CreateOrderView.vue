@@ -160,42 +160,30 @@
                     <h5 class="cart-item-name">{{ item.name }}</h5>
                     <p class="cart-item-variations" v-if="item.selectedVariations">
                       {{ formatVariations(item.selectedVariations) }}
-                    </p>
-                    <div class="cart-item-controls">
-                      <div class="quantity-controls">
-                        <button @click="decreaseQuantity(item)" class="qty-btn">
-                          <i class="bi bi-dash"></i>
-                        </button>
-                        <span class="quantity">{{ item.quantity }}</span>
-                        <button @click="increaseQuantity(item)" class="qty-btn">
-                          <i class="bi bi-plus"></i>
-                        </button>
-                      </div>
-                      <div class="cart-item-price">{{ item.totalPrice }}₽</div>
-                    </div>
-                  </div>
-                  <button @click="removeFromCart(item)" class="remove-item-btn">
-                    <i class="bi bi-x"></i>
-                  </button>
+                    </p>                      <div class="cart-item-controls">
+                        <div class="quantity-controls">
+                          <button
+                            @click="item.quantity === 1 ? removeFromCart(item) : decreaseQuantity(item)"
+                            class="qty-btn"
+                            :class="{ 'qty-btn-remove': item.quantity === 1 }"
+                          >
+                            <i :class="item.quantity === 1 ? 'bi bi-trash' : 'bi bi-dash'"></i>
+                          </button>
+                          <span class="quantity">{{ item.quantity }}</span>
+                          <button @click="increaseQuantity(item)" class="qty-btn">
+                            <i class="bi bi-plus"></i>
+                          </button>
+                        </div>
+                        <div class="cart-item-price">{{ item.totalPrice }}₽</div>
+                      </div>                    </div>
+                    <button @click="removeFromCart(item)" class="remove-item-btn" style="display: none;">
+                      <i class="bi bi-x"></i>
+                    </button>
                 </div>
               </div>
 
               <!-- Итого и оформление -->
               <div v-if="cartItems.length > 0" class="cart-footer">
-                <div class="cart-summary">
-                  <div class="summary-row">
-                    <span>Блюд:</span>
-                    <span>{{ cartItems.length }}</span>
-                  </div>
-                  <div class="summary-row">
-                    <span>Количество:</span>
-                    <span>{{ totalQuantity }}</span>
-                  </div>
-                  <div class="summary-row total">
-                    <span>Итого:</span>
-                    <span>{{ totalPrice }}₽</span>
-                  </div>
-                </div>
 
                 <!-- Способы оплаты -->
                 <div class="payment-methods">
@@ -221,7 +209,7 @@
                     :disabled="!selectedPaymentMethod"
                   >
                     <i class="bi bi-check-circle-fill"></i>
-                    Оформить заказ
+                    Оформить заказ ({{ totalPrice }}₽)
                   </button>
                 </div>
               </div>
@@ -792,10 +780,6 @@ const categories = ref<Category[]>([
 const currentCategoryDishes = computed(() => {
   const category = categories.value.find(c => c.id === activeCategory.value)
   return category?.items || []
-})
-
-const totalQuantity = computed(() => {
-  return cartItems.value.reduce((sum, item) => sum + item.quantity, 0)
 })
 
 const totalPrice = computed(() => {
