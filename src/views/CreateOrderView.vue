@@ -361,8 +361,14 @@
           <div v-if="selectedOrderType === 'table'" class="tables-section">
             <h4>Выберите столик:</h4>
 
+            <!-- Индикатор загрузки зон -->
+            <div v-if="isLoadingZones || isLoadingTables" class="loading-indicator">
+              <i class="bi bi-arrow-clockwise spin"></i>
+              <span>Загрузка данных...</span>
+            </div>
+
             <!-- Вкладки зон -->
-            <div class="zone-tabs">
+            <div v-else-if="availableZones.length > 0" class="zone-tabs">
               <button
                 v-for="zoneName in availableZones"
                 :key="zoneName"
@@ -378,6 +384,11 @@
                 </span>
                 <span class="zone-count">{{ tablesByZones[zoneName]?.length || 0 }}</span>
               </button>
+            </div>
+
+            <!-- Сообщение об отсутствии зон -->
+            <div v-else class="no-zones-message">
+              <p>Зоны не найдены</p>
             </div>
 
             <!-- Столики активной зоны -->
@@ -410,6 +421,9 @@
 import { ref, computed, onMounted, onUnmounted } from 'vue'
 import { useRouter } from 'vue-router'
 import { useAuthStore } from '@/stores/auth'
+import { useNotificationStore } from '@/stores/notifications'
+import { apiService } from '@/services/api'
+import type { Location } from '@/types/api'
 
 // Типы
 interface DishVariationOption {
@@ -482,9 +496,25 @@ interface OrderType {
   description: string
 }
 
+// Интерфейс для столика в UI
+interface UITable {
+  id: string
+  name: string
+  capacity: number
+  zone: string
+}
+
+// Интерфейс для зоны
+interface Zone {
+  id: string
+  name: string
+  color: string
+}
+
 // Stores and router
 const router = useRouter()
 const authStore = useAuthStore()
+const notificationStore = useNotificationStore()
 
 // Реактивные данные
 const currentTime = ref('')
@@ -493,6 +523,14 @@ const selectedTable = ref<string | null>(null)
 const cartItems = ref<CartItem[]>([])
 const selectedPaymentMethod = ref<string | null>(null)
 const selectedOrderType = ref<string | null>(null)
+
+// Состояние загрузки
+const isLoadingZones = ref(false)
+const isLoadingTables = ref(false)
+
+// Данные из API
+const zones = ref<Zone[]>([])
+const availableTables = ref<UITable[]>([])
 
 // Модальные окна
 const showDishModal = ref(false)
@@ -522,20 +560,6 @@ const orderTypes = ref<OrderType[]>([
     icon: 'bi-truck',
     description: 'Доставим по указанному адресу'
   }
-])
-
-// Столики (данные как в дашборде)
-const availableTables = ref([
-  { id: '01', name: 'Столик 01', capacity: 2, zone: 'Основной зал' },
-  { id: '02', name: 'Столик 02', capacity: 4, zone: 'Основной зал' },
-  { id: '03', name: 'Столик 03', capacity: 6, zone: 'Основной зал' },
-  { id: '04', name: 'Столик 04', capacity: 2, zone: 'Барная зона' },
-  { id: '05', name: 'Столик 05', capacity: 4, zone: 'Терраса' },
-  { id: '06', name: 'Столик 06', capacity: 8, zone: 'Терраса' },
-  { id: '07', name: 'Столик 07', capacity: 2, zone: 'Терраса' },
-  { id: '08', name: 'Столик 08', capacity: 4, zone: 'VIP зона' },
-  { id: '09', name: 'Столик 09', capacity: 6, zone: 'VIP зона' },
-  { id: '10', name: 'Столик 10', capacity: 4, zone: 'VIP зона' }
 ])
 
 // Имя официанта
@@ -803,15 +827,10 @@ const activeZoneTables = computed(() => {
   return tablesByZones.value[activeZone.value]
 })
 
-// Цвета для зон (как в дашборде)
+// Цвета для зон (используем данные из API)
 const getZoneColor = (zoneName: string) => {
-  const colors: Record<string, string> = {
-    'Основной зал': '#3498db',
-    'VIP зона': '#f39c12',
-    'Терраса': '#27ae60',
-    'Барная зона': '#9b59b6'
-  }
-  return colors[zoneName] || '#6c757d'
+  const zone = zones.value.find(z => z.name === zoneName)
+  return zone?.color || '#6c757d'
 }
 
 // Динамические значения для модального окна на основе выбранных вариаций
@@ -1080,12 +1099,195 @@ const createOrder = () => {
   router.push({ name: 'dashboard' })
 }
 
+// Функция для преобразования API Location в Zone
+const mapLocationToZone = (location: Location): Zone => {
+  return {
+    id: location.id.toString(),
+    name: location.name,
+    color: location.color || '#6c757d'
+  }
+}
+
+// Функция для преобразования API Table в UI Table
+const mapApiTableToUITable = (apiTable: import('@/types/api').Table & { current_order_id?: number | null }, locations: Location[]): UITable => {
+  const location = locations.find(loc => loc.id === apiTable.location_id)
+
+  return {
+    id: apiTable.number.toString(),
+    name: `Столик ${apiTable.number}`,
+    capacity: apiTable.seats,
+    zone: location?.name || 'Неизвестная зона'
+  }
+}
+
+// Функция загрузки зон
+const loadZones = async () => {
+  try {
+    isLoadingZones.value = true
+    console.log('Загрузка зон через API...')
+
+    const response = await apiService.getLocations()
+    console.log('Получены локации:', response)
+
+    // API может возвращать либо массив Location[], либо объект {locations: Location[], total: number}
+    let locationsArray: Location[]
+    if (Array.isArray(response)) {
+      locationsArray = response
+    } else if (response && typeof response === 'object' && 'locations' in response) {
+      locationsArray = (response as { locations: Location[] }).locations || []
+    } else {
+      locationsArray = []
+    }
+
+    // Фильтруем только активные локации
+    const filteredLocations = locationsArray
+      .filter((location: Location) => location.is_active)
+      // Сортируем по имени для стабильного порядка
+      .sort((a, b) => a.name.localeCompare(b.name))
+
+    console.log(`Отфильтровано ${filteredLocations.length} активных зон из ${locationsArray.length}`)
+
+    // Преобразуем в Zone
+    const apiZones = filteredLocations.map(mapLocationToZone)
+
+    // Устанавливаем зоны из API
+    zones.value = apiZones
+
+    console.log('Зоны загружены:', zones.value)
+
+    // Показываем уведомление об успешной загрузке
+    if (apiZones.length > 0) {
+      notificationStore.addNotification({
+        type: 'success',
+        title: 'Зоны загружены',
+        message: `Загружено ${apiZones.length} зон ресторана`,
+        read: false,
+        sound: false
+      })
+    }
+  } catch (error) {
+    handleApiError(error, 'загрузки зон')
+
+    // В случае ошибки оставляем пустой массив
+    zones.value = []
+  } finally {
+    isLoadingZones.value = false
+  }
+}
+
+// Функция загрузки столиков
+const loadTables = async () => {
+  try {
+    isLoadingTables.value = true
+    console.log('Загрузка столиков через API...')
+
+    const [tablesResponse, locationsResponse] = await Promise.all([
+      apiService.getTables(),
+      apiService.getLocations()
+    ])
+
+    console.log('Получены столики:', tablesResponse)
+    console.log('Получены локации для столиков:', locationsResponse)
+
+    // Обрабатываем ответ локаций
+    let locationsArray: Location[]
+    if (Array.isArray(locationsResponse)) {
+      locationsArray = locationsResponse
+    } else if (locationsResponse && typeof locationsResponse === 'object' && 'locations' in locationsResponse) {
+      locationsArray = (locationsResponse as { locations: Location[] }).locations || []
+    } else {
+      locationsArray = []
+    }
+
+    // Обрабатываем ответ столиков
+    let tablesArray: (import('@/types/api').Table & { current_order_id?: number | null })[]
+    if (Array.isArray(tablesResponse)) {
+      tablesArray = tablesResponse
+    } else if (tablesResponse && typeof tablesResponse === 'object' && 'tables' in tablesResponse) {
+      tablesArray = (tablesResponse as { tables: typeof tablesArray }).tables || []
+    } else {
+      tablesArray = []
+    }
+
+    // Получаем только активные локации для фильтрации
+    const activeLocationIds = locationsArray
+      .filter(location => location.is_active)
+      .map(location => location.id)
+
+    // Фильтруем только активные столики из активных зон
+    const activeTables = tablesArray.filter(table =>
+      table.is_active && activeLocationIds.includes(table.location_id)
+    )
+
+    console.log(`Отфильтровано ${activeTables.length} активных столиков из активных зон из ${tablesArray.length} общих столиков`)
+
+    // Преобразуем в UI формат
+    const uiTables = activeTables.map(table => mapApiTableToUITable(table, locationsArray))
+
+    // Устанавливаем столики
+    availableTables.value = uiTables
+
+    console.log('Столики загружены:', availableTables.value)
+
+    // Показываем уведомление об успешной загрузке
+    if (uiTables.length > 0) {
+      notificationStore.addNotification({
+        type: 'success',
+        title: 'Столики загружены',
+        message: `Загружено ${uiTables.length} столиков`,
+        read: false,
+        sound: false
+      })
+    }
+  } catch (error) {
+    handleApiError(error, 'загрузки столиков')
+
+    // В случае ошибки оставляем пустой массив
+    availableTables.value = []
+  } finally {
+    isLoadingTables.value = false
+  }
+}
+
+// Обработчик ошибок API
+const handleApiError = (error: unknown, context: string) => {
+  console.error(`Ошибка ${context}:`, error)
+
+  let errorMessage = 'Произошла неизвестная ошибка'
+
+  if (error && typeof error === 'object' && 'response' in error) {
+    // Ошибка от сервера
+    const axiosError = error as { response: { status: number; data?: { message?: string } } }
+    errorMessage = axiosError.response.data?.message || `Ошибка сервера: ${axiosError.response.status}`
+  } else if (error && typeof error === 'object' && 'request' in error) {
+    // Ошибка сети
+    errorMessage = 'Ошибка сети. Проверьте подключение к интернету'
+  } else if (error instanceof Error) {
+    // Другие ошибки
+    errorMessage = error.message || 'Произошла неизвестная ошибка'
+  }
+
+  notificationStore.addNotification({
+    type: 'error',
+    title: `Ошибка ${context}`,
+    message: errorMessage,
+    read: false,
+    sound: true
+  })
+}
+
 // Lifecycle
 let timeInterval: number
 
-onMounted(() => {
+onMounted(async () => {
   updateTime()
   timeInterval = setInterval(updateTime, 1000) as unknown as number
+
+  // Загружаем зоны и столики при инициализации компонента
+  await Promise.all([
+    loadZones(),
+    loadTables()
+  ])
 
   // Получаем столик из роута если есть
   const tableParam = router.currentRoute.value.query.table as string
