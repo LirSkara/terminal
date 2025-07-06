@@ -56,7 +56,9 @@
             >
               <i :class="category.icon"></i>
               <span>{{ category.name }}</span>
-              <div class="category-count">{{ category.items.length }}</div>
+              <div class="category-count">
+                {{ getCategoryCount(category) }}
+              </div>
             </button>
           </div>
         </div>
@@ -109,9 +111,7 @@
 
                     <div class="dish-footer">
                       <div class="dish-price">
-                        {{ dish.variations && dish.variations.length > 0 ?
-                           'от ' + (dish.variations[0].options[0]?.price || dish.basePrice) :
-                           dish.basePrice }}₽
+                        {{ formatDishPrice(dish) }}₽
                       </div>
                     </div>
                   </div>
@@ -517,12 +517,14 @@ const isLoadingZones = ref(false)
 const isLoadingTables = ref(false)
 const isLoadingCategories = ref(false)
 const isLoadingDishes = ref(false)
+const loadingDishesForCategories = ref<Set<number>>(new Set()) // Трекинг загрузки блюд для категорий
 
 // Данные из API
 const zones = ref<Zone[]>([])
 const availableTables = ref<UITable[]>([])
 const apiCategories = ref<import('@/types/api').Category[]>([])
 const apiDishes = ref<Record<number, import('@/types/api').Dish[]>>({}) // categoryId -> dishes
+const dishVariations = ref<Record<number, import('@/types/api').DishVariation[]>>({}) // dishId -> variations
 
 // Модальные окна
 const showDishModal = ref(false)
@@ -795,25 +797,55 @@ const mapApiCategoryToUICategory = (apiCategory: import('@/types/api').Category)
   }
 }
 
-const mapApiDishToUIDish = (apiDish: import('@/types/api').Dish): Dish => {
+const mapApiDishToUIDish = (apiDish: import('@/types/api').Dish, variations?: import('@/types/api').DishVariation[]): Dish => {
+  // Получаем базовую цену из первой вариации или используем 0
+  let basePrice = 0
+  const dishVariations: DishVariation[] = []
+
+  if (variations && variations.length > 0) {
+    // Создаем группу размеров если есть вариации
+    const sizeOptions: DishVariationOption[] = variations.map(variation => ({
+      id: variation.id.toString(),
+      name: variation.name,
+      price: typeof variation.price === 'string' ? parseFloat(variation.price) : variation.price,
+      portionWeight: variation.weight || undefined,
+      calories: variation.calories || undefined,
+      cookingTime: apiDish.cooking_time || undefined
+    }))
+
+    // Берем цену первой вариации как базовую
+    const firstVariationPrice = variations[0].price
+    basePrice = typeof firstVariationPrice === 'string' ? parseFloat(firstVariationPrice) : firstVariationPrice
+
+    // Если есть несколько вариаций, создаем группу выбора
+    if (variations.length > 1) {
+      dishVariations.push({
+        id: 'size',
+        name: 'Размер',
+        required: true,
+        options: sizeOptions
+      })
+    }
+  }
+
   return {
     id: apiDish.id.toString(),
     name: apiDish.name,
     description: apiDish.description,
-    image: apiDish.main_image_url || 'https://images.unsplash.com/photo-1546069901-ba9599a7e63c?w=300&h=200&fit=crop', // Дефолтная картинка еды
-    basePrice: 0, // Будет установлено из вариаций
+    image: apiDish.main_image_url || 'https://images.unsplash.com/photo-1546069901-ba9599a7e63c?w=300&h=200&fit=crop',
+    basePrice: basePrice,
     categoryId: apiDish.category_id.toString(),
     isPopular: apiDish.is_popular,
-    isNew: false, // Пока нет поля в API
-    isVegetarian: false, // Пока нет поля в API
+    isNew: false, // TODO: добавить поле в API
+    isVegetarian: false, // TODO: добавить поле в API
     cookingTime: apiDish.cooking_time || undefined,
     calories: apiDish.calories || undefined,
-    allergens: [], // Пока нет поля в API
+    allergens: [], // TODO: добавить поле в API
     ingredients: apiDish.ingredients || [],
-    recommendations: '', // Пока нет поля в API
+    recommendations: '', // TODO: добавить поле в API
     isAvailable: apiDish.is_available,
     portionWeight: apiDish.weight || undefined,
-    variations: [] // Будет заполнено при необходимости
+    variations: dishVariations
   }
 }
 
@@ -825,7 +857,11 @@ const combinedCategories = computed(() => {
 
     // Добавляем блюда если они загружены для этой категории
     const dishesForCategory = apiDishes.value[category.id] || []
-    uiCategory.items = dishesForCategory.map(mapApiDishToUIDish)
+    uiCategory.items = dishesForCategory.map(dish => {
+      // Получаем вариации для данного блюда
+      const variations = dishVariations.value[dish.id] || []
+      return mapApiDishToUIDish(dish, variations)
+    })
 
     return uiCategory
   })
@@ -1105,6 +1141,37 @@ const formatVariations = (variations: Record<string, DishVariationOption>) => {
   return Object.values(variations).map(v => v.name).join(', ')
 }
 
+const getCategoryCount = (category: Category) => {
+  const categoryId = parseInt(category.id)
+
+  // Если это демо категория, возвращаем количество элементов
+  if (isNaN(categoryId)) {
+    return category.items.length.toString()
+  }
+
+  // Если блюда загружаются для этой категории
+  if (loadingDishesForCategories.value.has(categoryId)) {
+    return '...'
+  }
+
+  // Если блюда загружены, возвращаем их количество
+  if (apiDishes.value[categoryId]) {
+    return category.items.length.toString()
+  }
+
+  // Если блюда еще не загружены, показываем "?"
+  return '?'
+}
+
+const formatDishPrice = (dish: Dish) => {
+  if (dish.variations && dish.variations.length > 0) {
+    // Если есть вариации, показываем "от" минимальной цены
+    const minPrice = Math.min(...dish.variations[0].options.map(option => option.price))
+    return `от ${minPrice}`
+  }
+  return dish.basePrice.toString()
+}
+
 const createOrder = () => {
   if (!selectedPaymentMethod.value || cartItems.value.length === 0) return
 
@@ -1344,9 +1411,47 @@ const loadCategories = async () => {
   }
 }
 
+// Функция предзагрузки блюд для всех категорий
+const preloadAllCategories = async () => {
+  // Получаем все API категории
+  const categoriesToLoad = apiCategories.value.filter(category =>
+    !apiDishes.value[category.id] && !loadingDishesForCategories.value.has(category.id)
+  )
+
+  if (categoriesToLoad.length === 0) {
+    return
+  }
+
+  console.log(`Предзагрузка блюд для ${categoriesToLoad.length} категорий...`)
+
+  // Загружаем блюда для всех категорий параллельно, но с небольшой задержкой
+  const promises = categoriesToLoad.map((category, index) =>
+    new Promise<void>(resolve => {
+      // Добавляем небольшую задержку между запросами, чтобы не перегружать сервер
+      setTimeout(() => {
+        loadDishesForCategory(category.id).finally(() => resolve())
+      }, index * 200) // 200ms между запросами
+    })
+  )
+
+  await Promise.all(promises)
+  console.log('Предзагрузка всех категорий завершена')
+}
+
 // Функция загрузки блюд для категории
 const loadDishesForCategory = async (categoryId: number) => {
+  // Проверяем, не загружаются ли уже блюда для этой категории
+  if (loadingDishesForCategories.value.has(categoryId)) {
+    return
+  }
+
+  // Проверяем, не загружены ли уже блюда для этой категории
+  if (apiDishes.value[categoryId]) {
+    return
+  }
+
   try {
+    loadingDishesForCategories.value.add(categoryId)
     isLoadingDishes.value = true
     console.log(`Загрузка блюд для категории ${categoryId} через API...`)
 
@@ -1363,13 +1468,35 @@ const loadDishesForCategory = async (categoryId: number) => {
     // Устанавливаем блюда для категории
     apiDishes.value[categoryId] = activeDishes
 
-    console.log('Блюда загружены:', activeDishes)
+    // Загружаем вариации для каждого блюда
+    console.log('Загрузка вариаций для блюд...')
+    await Promise.all(activeDishes.map(async (dish) => {
+      try {
+        const variationsResponse = await apiService.getDishVariations(dish.id)
+        // Фильтруем только доступные вариации и сортируем
+        const activeVariations = variationsResponse.variations
+          .filter(variation => variation.is_available)
+          .sort((a, b) => a.sort_order - b.sort_order || a.name.localeCompare(b.name))
+
+        dishVariations.value[dish.id] = activeVariations
+        console.log(`Загружено ${activeVariations.length} вариаций для блюда "${dish.name}"`)
+      } catch (error) {
+        console.warn(`Ошибка загрузки вариаций для блюда ${dish.id}:`, error)
+        dishVariations.value[dish.id] = []
+      }
+    }))
+
+    console.log('Блюда и вариации загружены для категории', categoryId)
   } catch (error) {
     handleApiError(error, `загрузки блюд для категории ${categoryId}`)
     // В случае ошибки оставляем пустой массив
     apiDishes.value[categoryId] = []
   } finally {
-    isLoadingDishes.value = false
+    loadingDishesForCategories.value.delete(categoryId)
+    // Проверяем, остались ли еще загружающиеся категории
+    if (loadingDishesForCategories.value.size === 0) {
+      isLoadingDishes.value = false
+    }
   }
 }
 
@@ -1427,6 +1554,18 @@ onMounted(async () => {
   // Устанавливаем первую доступную категорию как активную
   if (combinedCategories.value.length > 0 && !activeCategory.value) {
     activeCategory.value = combinedCategories.value[0].id
+
+    // Загружаем блюда для первой категории сразу
+    const firstCategory = combinedCategories.value[0]
+    const firstCategoryId = parseInt(firstCategory.id)
+    if (!isNaN(firstCategoryId)) {
+      await loadDishesForCategory(firstCategoryId)
+
+      // Запускаем предзагрузку остальных категорий в фоновом режиме
+      preloadAllCategories().catch(error => {
+        console.warn('Ошибка предзагрузки категорий:', error)
+      })
+    }
   }
 
   // Получаем столик из роута если есть
@@ -1438,6 +1577,9 @@ onMounted(async () => {
     // Если столик не выбран, сразу открываем модальное окно выбора типа заказа
     openOrderTypeModal()
   }
+
+  // Предзагрузка всех категорий в фоновом режиме
+  preloadAllCategories()
 })
 
 onUnmounted(() => {
