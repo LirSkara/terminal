@@ -80,7 +80,7 @@ export function formatCookingTime(minutes: number): string {
   } else {
     const hours = Math.floor(minutes / 60)
     const remainingMinutes = minutes % 60
-    return remainingMinutes > 0 
+    return remainingMinutes > 0
       ? `${hours} ч. ${remainingMinutes} мин.`
       : `${hours} ч.`
   }
@@ -110,12 +110,12 @@ export function formatCalories(calories: number): string {
 export function formatPhone(phone: string): string {
   // Убираем все кроме цифр
   const numbers = phone.replace(/\D/g, '')
-  
+
   // Российский номер
   if (numbers.length === 11 && numbers.startsWith('7')) {
     return `+7 (${numbers.slice(1, 4)}) ${numbers.slice(4, 7)}-${numbers.slice(7, 9)}-${numbers.slice(9, 11)}`
   }
-  
+
   // Если не российский или некорректный, возвращаем как есть
   return phone
 }
@@ -172,18 +172,18 @@ export function delay(ms: number): Promise<void> {
 /**
  * Debounce функция
  */
-export function debounce<T extends (...args: any[]) => any>(
+export function debounce<T extends (...args: never[]) => unknown>(
   func: T,
   wait: number
 ): T {
   let timeout: number | null = null
-  
-  return ((...args: any[]) => {
+
+  return ((...args: Parameters<T>) => {
     const later = () => {
       timeout = null
       func(...args)
     }
-    
+
     if (timeout) {
       clearTimeout(timeout)
     }
@@ -210,7 +210,7 @@ export function isMobile(): boolean {
  */
 export function getScreenSize(): 'xs' | 'sm' | 'md' | 'lg' | 'xl' | 'xxl' {
   const width = window.innerWidth
-  
+
   if (width >= 1400) return 'xxl'
   if (width >= 1200) return 'xl'
   if (width >= 992) return 'lg'
@@ -235,7 +235,7 @@ export async function copyToClipboard(text: string): Promise<boolean> {
     document.body.appendChild(textArea)
     textArea.focus()
     textArea.select()
-    
+
     try {
       document.execCommand('copy')
       document.body.removeChild(textArea)
@@ -245,4 +245,26 @@ export async function copyToClipboard(text: string): Promise<boolean> {
       return false
     }
   }
+}
+
+/**
+ * Извлекает сообщение об ошибке из различных типов ошибок
+ */
+export function extractErrorMessage(error: unknown, defaultMessage = 'Произошла ошибка'): string {
+  if (error instanceof Error) {
+    return error.message
+  }
+
+  // Проверяем на axios ошибку
+  if (typeof error === 'object' && error !== null && 'response' in error) {
+    const axiosError = error as { response?: { data?: { message?: string; detail?: string } } }
+    return axiosError.response?.data?.message || axiosError.response?.data?.detail || defaultMessage
+  }
+
+  // Если это строка
+  if (typeof error === 'string') {
+    return error
+  }
+
+  return defaultMessage
 }

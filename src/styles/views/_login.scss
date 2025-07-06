@@ -34,7 +34,7 @@
 }
 
 // === БРЕНДИНГ ===
-.brand-content {
+.qres-login-brand-content {
   position: relative;
   z-index: 1;
   width: 100%;
@@ -52,38 +52,31 @@
   }
 }
 
-.brand-header {
+.qres-login-brand-header {
   margin-bottom: 3rem;
 }
 
-.brand-logo {
+.qres-login-brand-logo {
   font-size: 5rem;
-  margin-bottom: 1rem;
-
-  i {
-    background: linear-gradient(45deg, #ffd700, #ffed4e);
-    -webkit-background-clip: text;
-    -webkit-text-fill-color: transparent;
-    background-clip: text;
-    animation: qres-bounce 3s ease-in-out infinite;
-  }
+  text-align: center;
+  color: white;
 }
 
-.brand-title {
+.qres-login-brand-title {
   font-size: 3.5rem;
   font-weight: 800;
   margin-bottom: 0.5rem;
   text-shadow: 0 4px 8px rgba(0, 0, 0, 0.3);
 }
 
-.brand-subtitle {
+.qres-login-brand-subtitle {
   font-size: 1.5rem;
   font-weight: 300;
   margin-bottom: 1rem;
   color: rgba(255, 255, 255, 0.9);
 }
 
-.brand-description {
+.qres-login-brand-description {
   font-size: 1.1rem;
   line-height: 1.6;
   color: rgba(255, 255, 255, 0.8);
@@ -92,14 +85,14 @@
 }
 
 // === ОСОБЕННОСТИ ===
-.brand-features {
+.qres-login-brand-features {
   display: flex;
   flex-direction: column;
   gap: 1.5rem;
   margin-bottom: 3rem;
 }
 
-.feature-item {
+.qres-login-feature-item {
   display: flex;
   align-items: center;
   text-align: left;
@@ -109,7 +102,7 @@
   backdrop-filter: blur(10px);
 }
 
-.feature-icon {
+.qres-login-feature-icon {
   width: 60px;
   height: 60px;
   background: rgba(255, 255, 255, 0.2);
@@ -125,7 +118,7 @@
   }
 }
 
-.feature-text {
+.qres-login-feature-text {
   h4 {
     margin: 0 0 0.25rem 0;
     font-size: 1.1rem;
@@ -139,8 +132,8 @@
   }
 }
 
-.brand-footer {
-  .version-info {
+.qres-login-brand-footer {
+  .qres-login-version-info {
     font-size: 0.9rem;
     color: rgba(255, 255, 255, 0.7);
     margin: 0;
@@ -151,51 +144,79 @@
 .connection-status {
   position: fixed;
   top: 20px;
-  right: 20px;
-  padding: 0.75rem 1.25rem;
-  border-radius: 25px;
-  font-size: 0.9rem;
+  left: 50%;
+  transform: translateX(-50%);
+  padding: 1rem 1.5rem;
+  border-radius: 30px;
+  font-size: 1rem;
   font-weight: 600;
   display: flex;
   align-items: center;
+  justify-content: center;
   gap: 0.75rem;
-  @include variables.qres-glass-effect();
-  box-shadow: var(--qres-shadow-md);
+  min-width: 200px;
+  background: rgba(255, 255, 255, 0.95);
+  border: 2px solid rgba(255, 255, 255, 0.3);
+  box-shadow: var(--qres-shadow-lg);
   z-index: var(--qres-z-toast);
   transition: all var(--qres-transition-normal);
   cursor: pointer;
+  backdrop-filter: blur(15px);
 
   &:hover {
-    transform: translateY(-2px);
-    box-shadow: var(--qres-shadow-lg);
+    transform: translateX(-50%) translateY(-3px);
+    box-shadow: var(--qres-shadow-xl);
+    backdrop-filter: blur(20px);
+    background: rgba(255, 255, 255, 0.98);
   }
 
   &.connected {
-    color: #155724;
-    border: 2px solid var(--qres-success);
+    color: var(--qres-success);
+    border-color: var(--qres-success);
 
     i {
       color: var(--qres-success);
+      font-size: 1.1em;
       @include variables.qres-pulse-animation(var(--qres-success));
     }
   }
 
   &.disconnected {
-    color: #721c24;
-    border: 2px solid var(--qres-danger);
-    animation: shake 0.5s ease-in-out;
+    color: var(--qres-danger);
+    border-color: var(--qres-danger);
+    animation: shake 0.6s ease-in-out, glow-red 2s ease-in-out infinite;
 
     i {
       color: var(--qres-danger);
+      font-size: 1.1em;
       @include variables.qres-pulse-animation(var(--qres-danger));
     }
   }
 
+  span {
+    white-space: nowrap;
+    text-shadow: none;
+    color: inherit;
+  }
+
   @media (max-width: 768px) {
     top: 15px;
-    right: 15px;
-    padding: 0.6rem 1rem;
+    padding: 0.8rem 1.2rem;
+    font-size: 0.9rem;
+    min-width: 180px;
+    border-radius: 25px;
+  }
+
+  @media (max-width: 480px) {
+    top: 10px;
+    padding: 0.7rem 1rem;
     font-size: 0.85rem;
+    min-width: 160px;
+    border-radius: 20px;
+
+    span {
+      font-size: 0.8rem;
+    }
   }
 
   @media (max-width: 576px) {
@@ -205,6 +226,8 @@
     font-size: 0.8rem;
     gap: 0.5rem;
   }
+
+
 }
 
 // === ФОРМА ВХОДА ===
@@ -429,14 +452,43 @@
 // === АНИМАЦИИ ===
 @keyframes shake {
   0%, 100% {
-    transform: translateX(0);
+    transform: translateX(-50%) translateY(0);
   }
-  25% {
-    transform: translateX(-2px);
+  10%, 30%, 50%, 70%, 90% {
+    transform: translateX(-50%) translateY(-2px) translateX(-2px);
   }
-  75% {
-    transform: translateX(2px);
+  20%, 40%, 60%, 80% {
+    transform: translateX(-50%) translateY(2px) translateX(2px);
   }
+}
+
+// === ДОПОЛНИТЕЛЬНЫЕ АНИМАЦИИ ===
+
+// Анимация свечения для ошибки соединения
+@keyframes glow-red {
+  0%, 100% {
+    box-shadow: var(--qres-shadow-lg);
+  }
+  50% {
+    box-shadow: 0 0 20px rgba(231, 76, 60, 0.4), var(--qres-shadow-lg);
+  }
+}
+
+// Анимация появления при загрузке
+@keyframes slideDown {
+  from {
+    transform: translateX(-50%) translateY(-100%);
+    opacity: 0;
+  }
+  to {
+    transform: translateX(-50%) translateY(0);
+    opacity: 1;
+  }
+}
+
+// Применяем анимацию появления
+.connection-status {
+  animation: slideDown 0.6s ease-out;
 }
 
 // === АДАПТИВНОСТЬ ===
@@ -445,7 +497,7 @@
     padding: 1.5rem;
   }
 
-  .brand-content {
+  .qres-login-brand-content {
     margin-right: 2rem;
   }
 }
@@ -470,15 +522,15 @@
     padding: 2rem;
   }
 
-  .brand-logo {
+  .qres-login-brand-logo {
     font-size: 3rem;
   }
 
-  .brand-title {
+  .qres-login-brand-title {
     font-size: 2.5rem;
   }
 
-  .feature-item {
+  .qres-login-feature-item {
     padding: 0.75rem;
   }
 }
@@ -489,7 +541,7 @@
     padding: 1.5rem;
   }
 
-  .brand-title {
+  .qres-login-brand-title {
     font-size: 1.75rem;
   }
 

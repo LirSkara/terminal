@@ -2,7 +2,7 @@ import { defineStore } from 'pinia'
 import { ref, computed } from 'vue'
 import { apiService } from '@/services/api'
 import { webSocketService } from '@/services/websocket'
-import type { User, AuthResponse } from '@/types'
+import type { User, AuthResponse } from '@/types/api'
 import { storageKeys } from '@/utils/constants'
 import { safeJsonParse } from '@/utils/format'
 

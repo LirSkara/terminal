@@ -9,7 +9,7 @@ import type {
   Category,
   DishVariation,
   PaymentMethod
-} from '@/types'
+} from '@/types/api'
 
 class ApiService {
   private api: AxiosInstance

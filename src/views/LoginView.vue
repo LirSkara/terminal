@@ -2,11 +2,11 @@
   <div class="login-page">
     <!-- Фоновая секция на всю ширину -->
     <div class="background-section">
-      <!-- Индикатор соединения в правом верхнем углу -->
+      <!-- Индикатор соединения по центру сверху -->
       <div
         class="connection-status"
         :class="connectionClass"
-        :title="`API: ${apiService.getApiUrl()}`"
+        :title="`API: ${apiService.getApiUrl()} • Нажмите для проверки`"
         @click="checkConnection"
       >
         <i :class="connectionIcon"></i>
@@ -14,53 +14,53 @@
       </div>
 
       <!-- Левая часть с брендингом -->
-      <div class="brand-content">
-        <div class="brand-header">
-          <div class="brand-logo">
-            <i class="bi bi-egg-fried"></i>
+      <div class="qres-login-brand-content">
+        <div class="qres-login-brand-header">
+          <div class="qres-login-brand-logo">
+            <i class="bi bi-cup-hot-fill"></i>
           </div>
-          <h1 class="brand-title">QRes OS 4</h1>
-          <h2 class="brand-subtitle">Терминал официанта</h2>
-          <p class="brand-description">
+          <h1 class="qres-login-brand-title">QRes OS 4</h1>
+          <h2 class="qres-login-brand-subtitle">Терминал официанта</h2>
+          <p class="qres-login-brand-description">
             Современная система управления заказами в ресторане.
             Быстро, надёжно, удобно.
           </p>
         </div>
 
-        <div class="brand-features">
-          <div class="feature-item">
-            <div class="feature-icon">
+        <div class="qres-login-brand-features">
+          <div class="qres-login-feature-item">
+            <div class="qres-login-feature-icon">
               <i class="bi bi-lightning-charge-fill"></i>
             </div>
-            <div class="feature-text">
+            <div class="qres-login-feature-text">
               <h4>Быстрая работа</h4>
               <p>Принимайте заказы мгновенно</p>
             </div>
           </div>
 
-          <div class="feature-item">
-            <div class="feature-icon">
+          <div class="qres-login-feature-item">
+            <div class="qres-login-feature-icon">
               <i class="bi bi-shield-fill-check"></i>
             </div>
-            <div class="feature-text">
+            <div class="qres-login-feature-text">
               <h4>Безопасность</h4>
               <p>Защищённая авторизация</p>
             </div>
           </div>
 
-          <div class="feature-item">
-            <div class="feature-icon">
+          <div class="qres-login-feature-item">
+            <div class="qres-login-feature-icon">
               <i class="bi bi-graph-up-arrow"></i>
             </div>
-            <div class="feature-text">
+            <div class="qres-login-feature-text">
               <h4>Аналитика</h4>
               <p>Статистика в реальном времени</p>
             </div>
           </div>
         </div>
 
-        <div class="brand-footer">
-          <p class="version-info">Версия {{ appVersion }} • © 2025 QRes Technologies</p>
+        <div class="qres-login-brand-footer">
+          <p class="qres-login-version-info">Версия {{ appVersion }} • © 2025 QRes Technologies</p>
         </div>
       </div>
 
@@ -327,16 +327,16 @@ const connectionIcon = computed(() =>
 
 const connectionText = computed(() => {
   if (isConnected.value) {
-    return 'Сервер подключен'
+    return 'Подключен к серверу'
   } else {
     if (connectionError.value.includes('AbortError') || connectionError.value.includes('timeout')) {
-      return 'Таймаут соединения'
+      return '⏱️ Превышен таймаут'
     } else if (connectionError.value.includes('CORS')) {
-      return 'Ошибка CORS'
+      return '🚫 Ошибка CORS'
     } else if (connectionError.value.includes('fetch') || connectionError.value.includes('NetworkError')) {
-      return 'Сервер недоступен'
+      return '🔌 Сервер недоступен'
     } else {
-      return 'Нет соединения с сервером'
+      return '❌ Нет соединения'
     }
   }
 })

@@ -1,7 +1,8 @@
 import { defineStore } from 'pinia'
 import { ref, computed } from 'vue'
 import { apiService } from '@/services/api'
-import type { Order, CreateOrderRequest, OrderStatus, OrderItemStatus } from '@/types'
+import type { Order, CreateOrderRequest, OrderStatus, OrderItemStatus } from '@/types/api'
+import { extractErrorMessage } from '@/utils/format'
 
 export const useOrderStore = defineStore('orders', () => {
   // Состояние
@@ -11,27 +12,27 @@ export const useOrderStore = defineStore('orders', () => {
   const error = ref<string | null>(null)
 
   // Геттеры
-  const activeOrders = computed(() => 
-    orders.value.filter(order => 
+  const activeOrders = computed(() =>
+    orders.value.filter(order =>
       order.status !== 'served' && order.status !== 'cancelled'
     )
   )
 
-  const readyOrders = computed(() => 
+  const readyOrders = computed(() =>
     orders.value.filter(order => order.status === 'ready')
   )
 
-  const pendingOrders = computed(() => 
+  const pendingOrders = computed(() =>
     orders.value.filter(order => order.status === 'pending')
   )
 
-  const inProgressOrders = computed(() => 
+  const inProgressOrders = computed(() =>
     orders.value.filter(order => order.status === 'in_progress')
   )
 
   const todayOrders = computed(() => {
     const today = new Date().toDateString()
-    return orders.value.filter(order => 
+    return orders.value.filter(order =>
       new Date(order.created_at).toDateString() === today
     )
   })
@@ -52,11 +53,12 @@ export const useOrderStore = defineStore('orders', () => {
     try {
       isLoading.value = true
       error.value = null
-      
+
       const ordersData = await apiService.getOrders()
       orders.value = ordersData
-    } catch (err: any) {
-      error.value = err.response?.data?.message || 'Ошибка загрузки заказов'
+    } catch (err: unknown) {
+      const errorMessage = err instanceof Error ? err.message : 'Ошибка загрузки заказов'
+      error.value = errorMessage
       console.error('Ошибка загрузки заказов:', err)
     } finally {
       isLoading.value = false
@@ -71,10 +73,11 @@ export const useOrderStore = defineStore('orders', () => {
 
       const newOrder = await apiService.createOrder(orderData)
       orders.value.unshift(newOrder)
-      
+
       return newOrder
-    } catch (err: any) {
-      error.value = err.response?.data?.message || 'Ошибка создания заказа'
+    } catch (err: unknown) {
+      const errorMessage = err instanceof Error ? err.message : 'Ошибка создания заказа'
+      error.value = errorMessage
       console.error('Ошибка создания заказа:', err)
       return null
     } finally {
@@ -86,7 +89,7 @@ export const useOrderStore = defineStore('orders', () => {
   const fetchOrder = async (orderId: number): Promise<Order | null> => {
     try {
       const order = await apiService.getOrder(orderId)
-      
+
       // Обновляем в списке
       const index = orders.value.findIndex(o => o.id === orderId)
       if (index >= 0) {
@@ -94,10 +97,10 @@ export const useOrderStore = defineStore('orders', () => {
       } else {
         orders.value.unshift(order)
       }
-      
+
       return order
-    } catch (err: any) {
-      error.value = err.response?.data?.message || 'Ошибка загрузки заказа'
+    } catch (err: unknown) {
+      error.value = extractErrorMessage(err, 'Ошибка загрузки заказа')
       console.error('Ошибка загрузки заказа:', err)
       return null
     }
@@ -107,7 +110,7 @@ export const useOrderStore = defineStore('orders', () => {
   const updateOrderStatus = async (orderId: number, status: OrderStatus): Promise<boolean> => {
     try {
       const updatedOrder = await apiService.updateOrderStatus(orderId, status)
-      
+
       // Обновляем в списке
       const index = orders.value.findIndex(o => o.id === orderId)
       if (index >= 0) {
@@ -120,8 +123,8 @@ export const useOrderStore = defineStore('orders', () => {
       }
 
       return true
-    } catch (err: any) {
-      error.value = err.response?.data?.message || 'Ошибка обновления статуса заказа'
+    } catch (err: unknown) {
+      error.value = extractErrorMessage(err, 'Ошибка обновления статуса заказа')
       console.error('Ошибка обновления статуса заказа:', err)
       return false
     }
@@ -161,7 +164,7 @@ export const useOrderStore = defineStore('orders', () => {
   const updateOrderPayment = async (orderId: number, paymentStatus: string): Promise<boolean> => {
     try {
       const updatedOrder = await apiService.updateOrderPayment(orderId, paymentStatus)
-      
+
       // Обновляем в списке
       const index = orders.value.findIndex(o => o.id === orderId)
       if (index >= 0) {
@@ -174,8 +177,8 @@ export const useOrderStore = defineStore('orders', () => {
       }
 
       return true
-    } catch (err: any) {
-      error.value = err.response?.data?.message || 'Ошибка обновления статуса оплаты'
+    } catch (err: unknown) {
+      error.value = extractErrorMessage(err, 'Ошибка обновления статуса оплаты')
       console.error('Ошибка обновления статуса оплаты:', err)
       return false
     }
@@ -190,13 +193,13 @@ export const useOrderStore = defineStore('orders', () => {
   }): Promise<boolean> => {
     try {
       await apiService.addOrderItem(orderId, item)
-      
+
       // Перезагружаем заказ
       await fetchOrder(orderId)
-      
+
       return true
-    } catch (err: any) {
-      error.value = err.response?.data?.message || 'Ошибка добавления позиции'
+    } catch (err: unknown) {
+      error.value = extractErrorMessage(err, 'Ошибка добавления позиции')
       console.error('Ошибка добавления позиции:', err)
       return false
     }
@@ -209,13 +212,13 @@ export const useOrderStore = defineStore('orders', () => {
   }): Promise<boolean> => {
     try {
       await apiService.updateOrderItem(orderId, itemId, data)
-      
+
       // Перезагружаем заказ
       await fetchOrder(orderId)
-      
+
       return true
-    } catch (err: any) {
-      error.value = err.response?.data?.message || 'Ошибка обновления позиции'
+    } catch (err: unknown) {
+      error.value = extractErrorMessage(err, 'Ошибка обновления позиции')
       console.error('Ошибка обновления позиции:', err)
       return false
     }
@@ -225,13 +228,13 @@ export const useOrderStore = defineStore('orders', () => {
   const removeOrderItem = async (orderId: number, itemId: number): Promise<boolean> => {
     try {
       await apiService.deleteOrderItem(orderId, itemId)
-      
+
       // Перезагружаем заказ
       await fetchOrder(orderId)
-      
+
       return true
-    } catch (err: any) {
-      error.value = err.response?.data?.message || 'Ошибка удаления позиции'
+    } catch (err: unknown) {
+      error.value = extractErrorMessage(err, 'Ошибка удаления позиции')
       console.error('Ошибка удаления позиции:', err)
       return false
     }
@@ -249,9 +252,9 @@ export const useOrderStore = defineStore('orders', () => {
 
   // Получение активного заказа для столика
   const getActiveOrderForTable = (tableId: number): Order | null => {
-    return orders.value.find(order => 
-      order.table_id === tableId && 
-      order.status !== 'served' && 
+    return orders.value.find(order =>
+      order.table_id === tableId &&
+      order.status !== 'served' &&
       order.status !== 'cancelled'
     ) || null
   }

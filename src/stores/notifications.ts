@@ -1,6 +1,6 @@
 import { defineStore } from 'pinia'
 import { ref, computed } from 'vue'
-import type { NotificationMessage } from '@/types'
+import type { NotificationMessage } from '@/types/api'
 import { generateId } from '@/utils/format'
 
 export const useNotificationStore = defineStore('notifications', () => {
@@ -9,14 +9,14 @@ export const useNotificationStore = defineStore('notifications', () => {
   const soundEnabled = ref(true)
 
   // Геттеры
-  const unreadCount = computed(() => 
-    notifications.value.filter(n => !n.read).length
+  const unreadCount = computed(() =>
+    notifications.value.filter((n: NotificationMessage) => !n.read).length
   )
 
-  const recentNotifications = computed(() => 
+  const recentNotifications = computed(() =>
     notifications.value
       .slice()
-      .sort((a, b) => new Date(b.timestamp).getTime() - new Date(a.timestamp).getTime())
+      .sort((a: NotificationMessage, b: NotificationMessage) => new Date(b.timestamp).getTime() - new Date(a.timestamp).getTime())
       .slice(0, 10)
   )
 
@@ -52,7 +52,7 @@ export const useNotificationStore = defineStore('notifications', () => {
 
   // Отметка как прочитанное
   const markAsRead = (notificationId: string) => {
-    const notification = notifications.value.find(n => n.id === notificationId)
+    const notification = notifications.value.find((n: NotificationMessage) => n.id === notificationId)
     if (notification) {
       notification.read = true
     }
@@ -60,14 +60,14 @@ export const useNotificationStore = defineStore('notifications', () => {
 
   // Отметка всех как прочитанные
   const markAllAsRead = () => {
-    notifications.value.forEach(notification => {
+    notifications.value.forEach((notification: NotificationMessage) => {
       notification.read = true
     })
   }
 
   // Удаление уведомления
   const removeNotification = (notificationId: string) => {
-    const index = notifications.value.findIndex(n => n.id === notificationId)
+    const index = notifications.value.findIndex((n: NotificationMessage) => n.id === notificationId)
     if (index >= 0) {
       notifications.value.splice(index, 1)
     }
@@ -80,7 +80,7 @@ export const useNotificationStore = defineStore('notifications', () => {
 
   // Очистка прочитанных уведомлений
   const clearRead = () => {
-    notifications.value = notifications.value.filter(n => !n.read)
+    notifications.value = notifications.value.filter((n: NotificationMessage) => !n.read)
   }
 
   // Включение/выключение звука
