@@ -327,16 +327,16 @@ const connectionIcon = computed(() =>
 
 const connectionText = computed(() => {
   if (isConnected.value) {
-    return 'Подключен к серверу'
+    return 'Соединение с сервером установлено'
   } else {
     if (connectionError.value.includes('AbortError') || connectionError.value.includes('timeout')) {
-      return '⏱️ Превышен таймаут'
+      return '⏱️ Превышен таймаут (Обратитесь в техническую поддержку)'
     } else if (connectionError.value.includes('CORS')) {
-      return '🚫 Ошибка CORS'
+      return 'Ошибка CORS (Обратитесь в техническую поддержку)'
     } else if (connectionError.value.includes('fetch') || connectionError.value.includes('NetworkError')) {
-      return '🔌 Сервер недоступен'
+      return 'Сервер недоступен (Обратитесь в техническую поддержку)'
     } else {
-      return '❌ Нет соединения'
+      return 'Нет соединения с сервером (Обратитесь в техническую поддержку)'
     }
   }
 })
