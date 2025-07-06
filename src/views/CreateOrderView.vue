@@ -48,7 +48,7 @@
         <div class="categories-tabs">
           <div class="categories-list">
             <button
-              v-for="category in categories"
+              v-for="category in combinedCategories"
               :key="category.id"
               @click="activeCategory = category.id"
               :class="['category-tab', { active: activeCategory === category.id }]"
@@ -406,7 +406,7 @@
 </template>
 
 <script setup lang="ts">
-import { ref, computed, onMounted, onUnmounted } from 'vue'
+import { ref, computed, onMounted, onUnmounted, watch } from 'vue'
 import { useRouter } from 'vue-router'
 import { useAuthStore } from '@/stores/auth'
 import { useNotificationStore } from '@/stores/notifications'
@@ -506,7 +506,7 @@ const notificationStore = useNotificationStore()
 
 // Реактивные данные
 const currentTime = ref('')
-const activeCategory = ref('appetizers')
+const activeCategory = ref('')
 const selectedTable = ref<string | null>(null)
 const cartItems = ref<CartItem[]>([])
 const selectedPaymentMethod = ref<string | null>(null)
@@ -515,10 +515,14 @@ const selectedOrderType = ref<string | null>(null)
 // Состояние загрузки
 const isLoadingZones = ref(false)
 const isLoadingTables = ref(false)
+const isLoadingCategories = ref(false)
+const isLoadingDishes = ref(false)
 
 // Данные из API
 const zones = ref<Zone[]>([])
 const availableTables = ref<UITable[]>([])
+const apiCategories = ref<import('@/types/api').Category[]>([])
+const apiDishes = ref<Record<number, import('@/types/api').Dish[]>>({}) // categoryId -> dishes
 
 // Модальные окна
 const showDishModal = ref(false)
@@ -776,9 +780,66 @@ const categories = ref<Category[]>([
   }
 ])
 
+// Функции преобразования данных API в UI формат
+const mapApiCategoryToUICategory = (apiCategory: import('@/types/api').Category): Category => {
+  // Используем иконку и цвет из API, или значения по умолчанию если они отсутствуют
+  const defaultIcon = 'bi-star'
+  const defaultColor = '#6c757d'
+
+  return {
+    id: apiCategory.id.toString(),
+    name: apiCategory.name,
+    icon: apiCategory.icon || defaultIcon,
+    color: apiCategory.color || defaultColor,
+    items: [] // Будет заполнено позже при загрузке блюд
+  }
+}
+
+const mapApiDishToUIDish = (apiDish: import('@/types/api').Dish): Dish => {
+  return {
+    id: apiDish.id.toString(),
+    name: apiDish.name,
+    description: apiDish.description,
+    image: apiDish.main_image_url || 'https://images.unsplash.com/photo-1546069901-ba9599a7e63c?w=300&h=200&fit=crop', // Дефолтная картинка еды
+    basePrice: 0, // Будет установлено из вариаций
+    categoryId: apiDish.category_id.toString(),
+    isPopular: apiDish.is_popular,
+    isNew: false, // Пока нет поля в API
+    isVegetarian: false, // Пока нет поля в API
+    cookingTime: apiDish.cooking_time || undefined,
+    calories: apiDish.calories || undefined,
+    allergens: [], // Пока нет поля в API
+    ingredients: apiDish.ingredients || [],
+    recommendations: '', // Пока нет поля в API
+    isAvailable: apiDish.is_available,
+    portionWeight: apiDish.weight || undefined,
+    variations: [] // Будет заполнено при необходимости
+  }
+}
+
 // Вычисляемые свойства
+const combinedCategories = computed(() => {
+  // Преобразуем API категории в UI формат
+  const apiCategoriesUI = apiCategories.value.map(category => {
+    const uiCategory = mapApiCategoryToUICategory(category)
+
+    // Добавляем блюда если они загружены для этой категории
+    const dishesForCategory = apiDishes.value[category.id] || []
+    uiCategory.items = dishesForCategory.map(mapApiDishToUIDish)
+
+    return uiCategory
+  })
+
+  // Если есть API категории, показываем их, иначе демо данные
+  if (apiCategoriesUI.length > 0) {
+    return apiCategoriesUI
+  } else {
+    return categories.value
+  }
+})
+
 const currentCategoryDishes = computed(() => {
-  const category = categories.value.find(c => c.id === activeCategory.value)
+  const category = combinedCategories.value.find(c => c.id === activeCategory.value)
   return category?.items || []
 })
 
@@ -1233,6 +1294,85 @@ const loadTables = async () => {
   }
 }
 
+// Функция загрузки категорий
+const loadCategories = async () => {
+  try {
+    isLoadingCategories.value = true
+    console.log('Загрузка категорий через API...')
+
+    const response = await apiService.getCategories()
+    console.log('Получены категории:', response)
+
+    // Фильтруем только активные категории и сортируем по sort_order
+    const activeCategories = response.categories
+      .filter(category => category.is_active)
+      .sort((a, b) => a.sort_order - b.sort_order || a.name.localeCompare(b.name))
+
+    console.log(`Отфильтровано ${activeCategories.length} активных категорий из ${response.categories.length}`)
+
+    // Устанавливаем категории из API
+    apiCategories.value = activeCategories
+
+    // Показываем уведомление об успешной загрузке
+    if (activeCategories.length > 0) {
+      notificationStore.addNotification({
+        type: 'success',
+        title: 'Категории загружены',
+        message: `Загружено ${activeCategories.length} категорий меню`,
+        read: false,
+        sound: false
+      })
+
+      // Проверяем, есть ли категории без иконок или цветов
+      const categoriesWithoutIcons = activeCategories.filter(cat => !cat.icon && !cat.color)
+      if (categoriesWithoutIcons.length > 0) {
+        notificationStore.addNotification({
+          type: 'info',
+          title: 'Настройте иконки категорий',
+          message: `${categoriesWithoutIcons.length} категорий не имеют настроенных иконок или цветов. Настройте их в административной панели.`,
+          read: false,
+          sound: false
+        })
+      }
+    }
+  } catch (error) {
+    handleApiError(error, 'загрузки категорий')
+    // В случае ошибки оставляем пустой массив
+    apiCategories.value = []
+  } finally {
+    isLoadingCategories.value = false
+  }
+}
+
+// Функция загрузки блюд для категории
+const loadDishesForCategory = async (categoryId: number) => {
+  try {
+    isLoadingDishes.value = true
+    console.log(`Загрузка блюд для категории ${categoryId} через API...`)
+
+    const response = await apiService.getCategoryDishes(categoryId)
+    console.log('Получены блюда:', response)
+
+    // Фильтруем только активные блюда и сортируем по sort_order
+    const activeDishes = response.dishes
+      .filter(dish => dish.is_available)
+      .sort((a, b) => a.sort_order - b.sort_order || a.name.localeCompare(b.name))
+
+    console.log(`Отфильтровано ${activeDishes.length} доступных блюд для категории ${categoryId} из ${response.dishes.length}`)
+
+    // Устанавливаем блюда для категории
+    apiDishes.value[categoryId] = activeDishes
+
+    console.log('Блюда загружены:', activeDishes)
+  } catch (error) {
+    handleApiError(error, `загрузки блюд для категории ${categoryId}`)
+    // В случае ошибки оставляем пустой массив
+    apiDishes.value[categoryId] = []
+  } finally {
+    isLoadingDishes.value = false
+  }
+}
+
 // Обработчик ошибок API
 const handleApiError = (error: unknown, context: string) => {
   console.error(`Ошибка ${context}:`, error)
@@ -1260,6 +1400,16 @@ const handleApiError = (error: unknown, context: string) => {
   })
 }
 
+// Watchers
+watch(activeCategory, async (newCategoryId) => {
+  // Проверяем есть ли это в API категориях
+  const apiCategory = apiCategories.value.find(cat => cat.id.toString() === newCategoryId)
+  if (apiCategory && !apiDishes.value[apiCategory.id]) {
+    // Если категория из API и блюда еще не загружены, загружаем их
+    await loadDishesForCategory(apiCategory.id)
+  }
+})
+
 // Lifecycle
 let timeInterval: number
 
@@ -1267,11 +1417,17 @@ onMounted(async () => {
   updateTime()
   timeInterval = setInterval(updateTime, 1000) as unknown as number
 
-  // Загружаем зоны и столики при инициализации компонента
+  // Загружаем зоны, столики и категории при инициализации компонента
   await Promise.all([
     loadZones(),
-    loadTables()
+    loadTables(),
+    loadCategories()
   ])
+
+  // Устанавливаем первую доступную категорию как активную
+  if (combinedCategories.value.length > 0 && !activeCategory.value) {
+    activeCategory.value = combinedCategories.value[0].id
+  }
 
   // Получаем столик из роута если есть
   const tableParam = router.currentRoute.value.query.table as string

@@ -30,7 +30,10 @@ import type {
   CreateIngredientRequest,
   UpdateIngredientRequest,
   CreatePaymentMethodRequest,
-  UpdatePaymentMethodRequest
+  UpdatePaymentMethodRequest,
+  CategoriesResponse,
+  DishesResponse,
+  DishVariationsResponse
 } from '@/types/api'
 
 class ApiService {
@@ -269,8 +272,8 @@ class ApiService {
   }
 
   // Вариации блюд
-  async getDishVariations(dishId: number): Promise<DishVariation[]> {
-    const response = await this.api.get<DishVariation[]>(`/dishes/${dishId}/variations/`)
+  async getDishVariations(dishId: number): Promise<DishVariationsResponse> {
+    const response = await this.api.get<DishVariationsResponse>(`/dishes/${dishId}/variations/`)
     return response.data
   }
 
@@ -496,8 +499,8 @@ class ApiService {
   // КАТЕГОРИИ
   // ===================
 
-  async getCategories(): Promise<Category[]> {
-    const response = await this.api.get<Category[]>('/categories/')
+  async getCategories(): Promise<CategoriesResponse> {
+    const response = await this.api.get<CategoriesResponse>('/categories/')
     return response.data
   }
 
@@ -516,8 +519,8 @@ class ApiService {
     return response.data
   }
 
-  async getCategoryDishes(categoryId: number): Promise<Dish[]> {
-    const response = await this.api.get<Dish[]>(`/categories/${categoryId}/dishes`)
+  async getCategoryDishes(categoryId: number): Promise<DishesResponse> {
+    const response = await this.api.get<DishesResponse>(`/categories/${categoryId}/dishes`)
     return response.data
   }
 

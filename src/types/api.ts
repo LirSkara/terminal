@@ -56,9 +56,13 @@ export interface Category {
   id: number
   name: string
   description: string
-  image_url?: string
+  image_url?: string | null
+  icon?: string | null // Иконка категории (например, 'bi-egg-fried')
+  color?: string | null // Цвет категории (hex, rgb или имя цвета)
   sort_order: number
   is_active: boolean
+  created_at: string
+  updated_at: string
 }
 
 export interface Dish {
@@ -66,14 +70,17 @@ export interface Dish {
   name: string
   description: string
   category_id: number
-  main_image_url?: string
-  cooking_time: number
-  weight: number
-  calories: number
-  ingredients: string[]
+  main_image_url?: string | null
+  cooking_time?: number | null
+  weight?: number | null
+  calories?: number | null
+  ingredients?: string[] | null
   sort_order: number
   is_available: boolean
   is_popular: boolean
+  code?: string | null
+  created_at: string
+  updated_at: string
 }
 
 export interface DishVariation {
@@ -96,6 +103,23 @@ export interface MenuResponse {
   categories: Category[]
   dishes: Dish[]
   variations: Record<number, DishVariation[]> // dish_id -> variations
+}
+
+// Ответы API с пагинацией
+export interface CategoriesResponse {
+  categories: Category[]
+  total: number
+}
+
+export interface DishesResponse {
+  dishes: Dish[]
+  total: number
+  category?: Category
+}
+
+export interface DishVariationsResponse {
+  variations: DishVariation[]
+  total: number
 }
 
 // === ЗАКАЗЫ ===
