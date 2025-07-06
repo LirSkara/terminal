@@ -85,5 +85,5 @@ onMounted(async () => {
 </script>
 
 <style lang="scss">
-@import '@/styles/main';
+@use '@/styles/main';
 </style>

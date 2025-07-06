@@ -757,5 +757,5 @@ watch(filteredTables, (newTables) => {
 </script>
 
 <style scoped lang="scss">
-@import '@/styles/views/dashboard';
+@use '@/styles/views/dashboard';
 </style>

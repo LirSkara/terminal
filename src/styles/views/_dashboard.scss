@@ -2,8 +2,8 @@
 // QRes OS 4 - Стили панели управления
 // ==========================================
 
-@import '../variables';
-@import '../components/common';
+@use '../variables';
+@use '../components/common';
 
 // === ОСНОВНОЙ КОНТЕЙНЕР ===
 .dashboard-view {
@@ -14,7 +14,7 @@
 
 // === ЗАГОЛОВОК ДАШБОРДА ===
 .dashboard-header {
-  @include qres-glass-effect();
+  @include variables.qres-glass-effect();
   border-radius: var(--qres-radius-xl);
   margin: 1rem;
   padding: 2rem;
@@ -146,7 +146,7 @@
     background: var(--qres-gradient-warning);
 
     &.pulse {
-      @include qres-pulse-animation($qres-warning);
+      @include variables.qres-pulse-animation(var(--qres-warning));
     }
   }
 
@@ -154,7 +154,7 @@
     background: var(--qres-gradient-danger);
 
     &.pulse {
-      @include qres-pulse-animation($qres-danger);
+      @include variables.qres-pulse-animation(var(--qres-danger));
     }
   }
 
@@ -205,7 +205,7 @@
 
 // === ОБЪЕДИНЕННАЯ ПАНЕЛЬ УПРАВЛЕНИЯ ===
 .unified-controls {
-  @include qres-glass-effect();
+  @include variables.qres-glass-effect();
   border-radius: var(--qres-radius-xl);
   padding: 1rem 1.5rem;
   box-shadow: var(--qres-shadow-md);
@@ -232,7 +232,7 @@
   height: 56px;
   border-radius: var(--qres-radius-lg);
   border: 2px solid transparent;
-  @include qres-glass-effect(0.8);
+  @include variables.qres-glass-effect(0.8);
   display: flex;
   flex-direction: column;
   align-items: center;
@@ -287,7 +287,7 @@
   height: 48px;
   border-radius: var(--qres-radius-md);
   border: 2px solid transparent;
-  @include qres-glass-effect(0.8);
+  @include variables.qres-glass-effect(0.8);
   display: flex;
   flex-direction: column;
   align-items: center;
@@ -340,7 +340,7 @@
 
 // === КАРТОЧКИ СТОЛИКОВ ===
 .dashboard-table-card {
-  @include qres-glass-effect();
+  @include variables.qres-glass-effect();
   border-radius: var(--qres-radius-xl);
   border: 2px solid transparent;
   box-shadow: var(--qres-shadow-md);
@@ -355,7 +355,7 @@
   }
 
   &.dashboard-table-pulse {
-    @include qres-pulse-animation($qres-warning);
+    @include variables.qres-pulse-animation(var(--qres-warning));
   }
 }
 
@@ -393,12 +393,12 @@
 
   .dashboard-table-status-qr-waiting & {
     background: linear-gradient(45deg, #9b59b6, #e74c3c);
-    @include qres-pulse-animation(#9b59b6);
+    @include variables.qres-pulse-animation(#9b59b6);
   }
 
   .dashboard-table-status-ready & {
     background: var(--qres-gradient-warning);
-    @include qres-pulse-animation($qres-warning);
+    @include variables.qres-pulse-animation(var(--qres-warning));
   }
 
   .dashboard-table-status-cleaning & {
@@ -642,7 +642,7 @@
 }
 
 .order-modal {
-  @include qres-glass-effect();
+  @include variables.qres-glass-effect();
   border-radius: var(--qres-radius-xl);
   box-shadow: var(--qres-shadow-xl);
   width: 100%;
@@ -734,7 +734,7 @@
   display: flex;
   align-items: center;
   padding: 1rem;
-  @include qres-glass-effect(0.8);
+  @include variables.qres-glass-effect(0.8);
   border-radius: var(--qres-radius-md);
   border: 1px solid rgba(0, 0, 0, 0.05);
   transition: all var(--qres-transition-normal);
@@ -793,7 +793,7 @@
 
 .order-notes {
   padding: 1rem;
-  @include qres-glass-effect(0.8);
+  @include variables.qres-glass-effect(0.8);
   border-radius: var(--qres-radius-md);
   border-left: 4px solid var(--qres-warning);
   font-style: italic;

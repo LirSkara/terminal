@@ -2,7 +2,8 @@
 // QRes OS 4 - Общие компоненты
 // ==========================================
 
-@import '../variables';
+@use 'sass:color';
+@use '../variables';
 
 // === КНОПКИ ===
 .qres-btn {
@@ -42,23 +43,23 @@
 
   // Варианты
   &-primary {
-    @include qres-button-gradient($qres-primary, $qres-primary-dark);
+    @include variables.qres-button-gradient(variables.$qres-primary, variables.$qres-primary-dark);
   }
 
   &-success {
-    @include qres-button-gradient($qres-success, lighten($qres-success, 10%));
+    @include variables.qres-button-gradient(variables.$qres-success, color.adjust(variables.$qres-success, $lightness: 10%));
   }
 
   &-warning {
-    @include qres-button-gradient($qres-warning, lighten($qres-warning, 10%));
+    @include variables.qres-button-gradient(variables.$qres-warning, color.adjust(variables.$qres-warning, $lightness: 10%));
   }
 
   &-danger {
-    @include qres-button-gradient($qres-danger, darken($qres-danger, 10%));
+    @include variables.qres-button-gradient(variables.$qres-danger, color.adjust(variables.$qres-danger, $lightness: -10%));
   }
 
   &-info {
-    @include qres-button-gradient($qres-info, lighten($qres-info, 10%));
+    @include variables.qres-button-gradient(variables.$qres-info, color.adjust(variables.$qres-info, $lightness: 10%));
   }
 
   &-outline {
@@ -85,11 +86,11 @@
 
 // === КАРТОЧКИ ===
 .qres-card {
-  @include qres-glass-effect();
+  @include variables.qres-glass-effect();
   border-radius: var(--qres-radius-lg);
   padding: var(--qres-card-padding);
   box-shadow: var(--qres-shadow-md);
-  @include qres-card-hover();
+  @include variables.qres-card-hover();
 
   &-header {
     margin-bottom: 1.5rem;
@@ -218,7 +219,7 @@
   backdrop-filter: blur(5px);
 
   &-dialog {
-    @include qres-glass-effect();
+    @include variables.qres-glass-effect();
     border-radius: var(--qres-radius-xl);
     max-width: 90vw;
     max-height: 90vh;
@@ -289,25 +290,25 @@
   &-success {
     background: rgba(39, 174, 96, 0.1);
     border-color: var(--qres-success);
-    color: darken($qres-success, 20%);
+    color: color.adjust(variables.$qres-success, $lightness: -20%);
   }
 
   &-warning {
     background: rgba(243, 156, 18, 0.1);
     border-color: var(--qres-warning);
-    color: darken($qres-warning, 20%);
+    color: color.adjust(variables.$qres-warning, $lightness: -20%);
   }
 
   &-danger {
     background: rgba(231, 76, 60, 0.1);
     border-color: var(--qres-danger);
-    color: darken($qres-danger, 20%);
+    color: color.adjust(variables.$qres-danger, $lightness: -20%);
   }
 
   &-info {
     background: rgba(52, 152, 219, 0.1);
     border-color: var(--qres-info);
-    color: darken($qres-info, 20%);
+    color: color.adjust(variables.$qres-info, $lightness: -20%);
   }
 }
 

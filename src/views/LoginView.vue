@@ -518,5 +518,5 @@ onMounted(async () => {
 </script>
 
 <style scoped lang="scss">
-@import '@/styles/views/login';
+@use '@/styles/views/login';
 </style>

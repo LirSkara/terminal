@@ -2,6 +2,10 @@
 // QRes OS 4 - Общие переменные и константы
 // ==========================================
 
+@use 'sass:string';
+@use 'sass:meta';
+@use 'sass:map';
+
 // === ЦВЕТОВАЯ СХЕМА ===
 :root {
   // Основные цвета бренда
@@ -148,7 +152,9 @@ $qres-breakpoints: (
 }
 
 @mixin qres-pulse-animation($color) {
-  @keyframes qres-pulse-#{str-slice(inspect($color), 2)} {
+  animation: qres-pulse-#{string.slice(meta.inspect($color), 2)} 2s infinite;
+
+  @keyframes qres-pulse-#{string.slice(meta.inspect($color), 2)} {
     0%, 100% {
       box-shadow: 0 0 0 0 rgba($color, 0.7);
     }
@@ -156,13 +162,11 @@ $qres-breakpoints: (
       box-shadow: 0 0 0 10px rgba($color, 0);
     }
   }
-
-  animation: qres-pulse-#{str-slice(inspect($color), 2)} 2s infinite;
 }
 
 @mixin qres-responsive($breakpoint) {
-  @if map-has-key($qres-breakpoints, $breakpoint) {
-    @media (min-width: map-get($qres-breakpoints, $breakpoint)) {
+  @if map.has-key($qres-breakpoints, $breakpoint) {
+    @media (min-width: map.get($qres-breakpoints, $breakpoint)) {
       @content;
     }
   }
