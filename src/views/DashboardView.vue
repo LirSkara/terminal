@@ -363,6 +363,7 @@ import { useAuthStore } from '@/stores/auth'
 import { useNotificationStore } from '@/stores/notifications'
 import { useRouter } from 'vue-router'
 import { apiService } from '@/services/api'
+import { cacheService } from '@/services/cache'
 import type { Location } from '@/types/api'
 
 // Типы
@@ -447,6 +448,95 @@ const zones = ref<Zone[]>([
 // Столики ресторана (загружаются из API)
 const tables = ref<Table[]>([])
 
+// Функция для проверки актуальности кэша
+const checkIfCacheNeedsUpdate = () => {
+  try {
+    // Проверяем, есть ли основные данные в кэше
+    const locationsCache = cacheService.get('locations')
+    const tablesCache = cacheService.get('tables')
+
+    if (!locationsCache || !tablesCache) {
+      console.log('Кэш зон или столиков отсутствует')
+      return true
+    }
+
+    // Проверяем время последнего обновления
+    const cacheInfo = cacheService.get('_dashboard_cache_timestamp')
+    if (cacheInfo) {
+      const lastUpdate = new Date(cacheInfo as string)
+      const now = new Date()
+      const minutesSinceUpdate = (now.getTime() - lastUpdate.getTime()) / (1000 * 60)
+
+      // Обновляем кэш если прошло больше 30 минут
+      if (minutesSinceUpdate > 30) {
+        console.log(`Кэш дашборда устарел: ${minutesSinceUpdate.toFixed(1)} минут назад`)
+        return true
+      }
+    }
+
+    console.log('Кэш дашборда актуален')
+    return false
+
+  } catch (error) {
+    console.warn('Ошибка проверки кэша дашборда:', error)
+    return true // При ошибке лучше обновить
+  }
+}
+
+// Функция для восстановления данных из кэша
+const restoreFromCache = () => {
+  console.log('Восстанавливаем данные дашборда из кэша...')
+
+  try {
+    // Восстанавливаем зоны
+    const locationsCache = cacheService.get('locations') as { locations: Location[] } | null
+    if (locationsCache && locationsCache.locations) {
+      const activeLocations = locationsCache.locations
+        .filter(location => location.is_active)
+        .sort((a, b) => a.name.localeCompare(b.name))
+
+      const apiZones = activeLocations.map(mapLocationToZone)
+      zones.value = [
+        { id: 'all', name: 'Все зоны', color: '#6c757d' },
+        ...apiZones
+      ]
+
+      console.log(`Восстановлено ${apiZones.length} зон из кэша`)
+    }
+
+    // Восстанавливаем столики
+    const tablesCache = cacheService.get('tables') as { tables: (import('@/types/api').Table & { current_order_id?: number | null })[] } | null
+    if (tablesCache && tablesCache.tables && zones.value.length > 1) {
+      // Получаем активные зоны для фильтрации
+      const activeLocationIds = zones.value
+        .filter(zone => zone.id !== 'all')
+        .map(zone => parseInt(zone.id))
+
+      const activeTables = tablesCache.tables.filter(table =>
+        table.is_active && activeLocationIds.includes(table.location_id)
+      )
+
+      // Создаем список локаций для маппинга
+      const locationsForMapping = zones.value
+        .filter(zone => zone.id !== 'all')
+        .map(zone => ({
+          id: parseInt(zone.id),
+          name: zone.name,
+          color: zone.color,
+          is_active: true
+        })) as Location[]
+
+      const uiTables = activeTables.map(table => mapApiTableToTable(table, locationsForMapping))
+      tables.value = uiTables
+
+      console.log(`Восстановлено ${uiTables.length} столиков из кэша`)
+    }
+
+  } catch (error) {
+    console.warn('Ошибка восстановления данных дашборда из кэша:', error)
+  }
+}
+
 // Функция для преобразования API Location в Zone
 const mapLocationToZone = (location: Location): Zone => {
   return {
@@ -519,6 +609,9 @@ const loadTables = async () => {
       tablesArray = []
     }
 
+    // Кэшируем данные столиков
+    cacheService.set('tables', { tables: tablesArray }, { ttl: 30 * 60 * 1000 }) // 30 минут
+
     // Получаем только активные локации для фильтрации
     const activeLocationIds = locationsArray
       .filter(location => location.is_active)
@@ -578,6 +671,9 @@ const loadZones = async () => {
       locationsArray = []
     }
 
+    // Кэшируем данные локаций
+    cacheService.set('locations', { locations: locationsArray }, { ttl: 30 * 60 * 1000 }) // 30 минут
+
     // Фильтруем только активные локации
     const filteredLocations = locationsArray
       .filter((location: Location) => location.is_active)
@@ -619,6 +715,27 @@ const loadZones = async () => {
   }
 }
 
+// Функция для полной загрузки данных дашборда
+const loadAllDashboardData = async () => {
+  console.log('Полная загрузка данных дашборда...')
+
+  try {
+    // Загружаем зоны и столики
+    await Promise.all([
+      loadZones(),
+      loadTables()
+    ])
+
+    // Сохраняем timestamp успешной загрузки (дольше чем данные, чтобы не истек раньше)
+    cacheService.set('_dashboard_cache_timestamp', new Date().toISOString(), { ttl: 60 * 60 * 1000 }) // 60 минут
+
+    console.log('Полная загрузка данных дашборда завершена')
+
+  } catch (error) {
+    console.error('Ошибка полной загрузки данных дашборда:', error)
+  }
+}
+
 // Функция для отладки зон (показывает подробную информацию)
 const debugZones = () => {
   console.group('🔍 Информация о зонах')
@@ -652,9 +769,65 @@ const debugTables = () => {
   console.groupEnd()
 }
 
+// Интерфейс для отладочных функций
+interface DashboardDebug {
+  getCacheInfo: () => void
+  clearCache: () => void
+  forceReload: () => void
+  restoreFromCache: () => void
+}
+
 // Добавляем debugZones в window для отладки из консоли браузера
 if (typeof window !== 'undefined') {
-  (window as unknown as Window & { debugZones: () => void }).debugZones = debugZones
+  (window as unknown as Window & {
+    debugZones: () => void
+    debugTables: () => void
+    qresDashDebug: DashboardDebug
+  }).debugZones = debugZones;
+
+  (window as unknown as Window & {
+    debugZones: () => void
+    debugTables: () => void
+    qresDashDebug: DashboardDebug
+  }).debugTables = debugTables
+
+  // Добавляем отладочные функции для кэша дашборда
+  ;(window as unknown as Window & {
+    debugZones: () => void
+    debugTables: () => void
+    qresDashDebug: DashboardDebug
+  }).qresDashDebug = {
+    getCacheInfo: () => {
+      const locationsCache = cacheService.get('locations')
+      const tablesCache = cacheService.get('tables')
+      const timestamp = cacheService.get('_dashboard_cache_timestamp')
+
+      console.log('Кэш дашборда:', {
+        locations: locationsCache ? 'Есть' : 'Отсутствует',
+        tables: tablesCache ? 'Есть' : 'Отсутствует',
+        timestamp: timestamp || 'Отсутствует',
+        zonesInMemory: zones.value.length,
+        tablesInMemory: tables.value.length
+      })
+    },
+    clearCache: () => {
+      cacheService.remove('locations')
+      cacheService.remove('tables')
+      cacheService.remove('_dashboard_cache_timestamp')
+      console.log('Кэш дашборда очищен')
+    },
+    forceReload: () => {
+      loadAllDashboardData().then(() => {
+        console.log('Принудительная перезагрузка данных дашборда завершена')
+      })
+    },
+    restoreFromCache: () => {
+      restoreFromCache()
+      console.log('Данные восстановлены из кэша')
+    }
+  }
+
+  console.log('Dashboard Debug доступен в window.qresDashDebug')
 }
 
 // Обработчик ошибок API
@@ -983,11 +1156,18 @@ onMounted(async () => {
   updateTime()
   timeInterval = setInterval(updateTime, 1000) as unknown as number
 
-  // Загружаем зоны и столики при инициализации компонента
-  await Promise.all([
-    loadZones(),
-    loadTables()
-  ])
+  // Сначала восстанавливаем данные из кэша для быстрого отображения
+  restoreFromCache()
+
+  // Проверяем актуальность кэша и загружаем только при необходимости
+  const shouldUpdateCache = checkIfCacheNeedsUpdate()
+
+  if (shouldUpdateCache) {
+    console.log('Кэш дашборда устарел или отсутствует, загружаем данные...')
+    await loadAllDashboardData()
+  } else {
+    console.log('Кэш дашборда актуален, загрузка с сервера не требуется')
+  }
 
   // Показываем отладочную информацию о зонах в режиме разработки
   if (import.meta.env.DEV) {

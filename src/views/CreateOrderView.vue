@@ -411,7 +411,8 @@ import { useRouter } from 'vue-router'
 import { useAuthStore } from '@/stores/auth'
 import { useNotificationStore } from '@/stores/notifications'
 import { apiService } from '@/services/api'
-import type { Location } from '@/types/api'
+import { cacheService } from '@/services/cache'
+import type { Location, Dish as ApiDish, DishVariation as ApiDishVariation } from '@/types/api'
 
 // Типы
 interface DishVariationOption {
@@ -1154,12 +1155,26 @@ const getCategoryCount = (category: Category) => {
     return '...'
   }
 
-  // Если блюда загружены, возвращаем их количество
+  // Если блюда загружены в память, возвращаем их количество
   if (apiDishes.value[categoryId]) {
-    return category.items.length.toString()
+    return apiDishes.value[categoryId].length.toString()
   }
 
-  // Если блюда еще не загружены, показываем "?"
+  // Проверяем кэш если данных нет в памяти
+  try {
+    const cacheKey = `category_dishes_${categoryId}`
+    const cachedData = cacheService.get(cacheKey) as { dishes: ApiDish[] } | null
+
+    if (cachedData && cachedData.dishes) {
+      // Считаем только доступные блюда
+      const availableDishes = cachedData.dishes.filter((dish: ApiDish) => dish.is_available)
+      return availableDishes.length.toString()
+    }
+  } catch (error) {
+    console.warn(`Ошибка чтения кэша для категории ${categoryId}:`, error)
+  }
+
+  // Если блюда еще не загружены и нет в кэше, показываем "?"
   return '?'
 }
 
@@ -1211,6 +1226,249 @@ const createOrder = () => {
   router.push({ name: 'dashboard' })
 }
 
+// Функция для проверки актуальности кэша
+const checkIfCacheNeedsUpdate = () => {
+  try {
+    // Проверяем, есть ли основные данные в кэше
+    const categoriesCache = cacheService.get('categories')
+    const locationsCache = cacheService.get('locations')
+    const tablesCache = cacheService.get('tables')
+
+    if (!categoriesCache) {
+      console.log('Кэш категорий отсутствует')
+      return true
+    }
+
+    if (!locationsCache || !tablesCache) {
+      console.log('Кэш зон или столиков отсутствует')
+      return true
+    }
+
+    // Проверяем время последнего обновления (если есть поддержка TTL)
+    const cacheInfo = cacheService.get('_cache_timestamp')
+    if (cacheInfo) {
+      const lastUpdate = new Date(cacheInfo as string)
+      const now = new Date()
+      const minutesSinceUpdate = (now.getTime() - lastUpdate.getTime()) / (1000 * 60)
+
+      // Обновляем кэш если прошло больше 60 минут
+      if (minutesSinceUpdate > 60) {
+        console.log(`Кэш меню устарел: ${minutesSinceUpdate.toFixed(1)} минут назад`)
+        return true
+      }
+    }
+
+    // Проверяем время последнего обновления зон и столиков (используем dashboard timestamp)
+    const dashboardCacheInfo = cacheService.get('_dashboard_cache_timestamp')
+    if (dashboardCacheInfo) {
+      const lastUpdate = new Date(dashboardCacheInfo as string)
+      const now = new Date()
+      const minutesSinceUpdate = (now.getTime() - lastUpdate.getTime()) / (1000 * 60)
+
+      // Проверяем, не устарели ли зоны и столики (30 минут как в DashboardView)
+      if (minutesSinceUpdate > 30) {
+        console.log(`Кэш зон и столиков устарел: ${minutesSinceUpdate.toFixed(1)} минут назад`)
+        return true
+      }
+    }
+
+    // Проверяем, есть ли блюда для всех категорий в кэше
+    if (apiCategories.value.length > 0) {
+      const missingDishesCategories = apiCategories.value.filter(category => {
+        const cacheKey = `category_dishes_${category.id}`
+        return !cacheService.get(cacheKey)
+      })
+
+      if (missingDishesCategories.length > 0) {
+        console.log(`Отсутствуют блюда для ${missingDishesCategories.length} категорий`)
+        return true
+      }
+    }
+
+    console.log('Кэш актуален')
+    return false
+
+  } catch (error) {
+    console.warn('Ошибка проверки кэша:', error)
+    return true // При ошибке лучше обновить
+  }
+}
+
+// Функция для полной загрузки всех данных при первом входе
+const loadAllDataInitial = async () => {
+  console.log('Начинаем полную загрузку всех данных...')
+
+  try {
+    // Показываем уведомление о начале загрузки
+    notificationStore.addNotification({
+      type: 'info',
+      title: 'Загрузка данных',
+      message: 'Загружаем меню ресторана...',
+      read: false,
+      sound: false
+    })
+
+    // Загружаем категории сначала
+    await loadCategories()
+
+    // Если категории загружены, загружаем блюда и вариации для всех категорий
+    if (apiCategories.value.length > 0) {
+      console.log(`Загружаем блюда для ${apiCategories.value.length} категорий...`)
+
+      // Загружаем блюда для всех категорий параллельно, но с ограничением
+      const batchSize = 3 // Загружаем по 3 категории одновременно
+      const categories = [...apiCategories.value]
+
+      for (let i = 0; i < categories.length; i += batchSize) {
+        const batch = categories.slice(i, i + batchSize)
+
+        await Promise.all(batch.map(async (category) => {
+          try {
+            await loadDishesForCategory(category.id)
+          } catch (error) {
+            console.warn(`Ошибка загрузки категории ${category.id}:`, error)
+          }
+        }))
+
+        // Небольшая пауза между пакетами
+        if (i + batchSize < categories.length) {
+          await new Promise(resolve => setTimeout(resolve, 200))
+        }
+      }
+    }
+
+    console.log('Полная загрузка данных завершена')
+
+    // Сохраняем timestamp успешной загрузки (дольше чем данные для надежности)
+    cacheService.set('_cache_timestamp', new Date().toISOString(), { ttl: 120 * 60 * 1000 }) // 120 минут
+
+    // Показываем уведомление об успешной загрузке
+    notificationStore.addNotification({
+      type: 'success',
+      title: 'Данные загружены',
+      message: 'Все данные меню успешно загружены и кэшированы',
+      read: false,
+      sound: false
+    })
+
+  } catch (error) {
+    console.error('Ошибка полной загрузки данных:', error)
+
+    notificationStore.addNotification({
+      type: 'error',
+      title: 'Ошибка загрузки',
+      message: 'Не удалось загрузить все данные меню',
+      read: false,
+      sound: true
+    })
+  }
+}
+
+// Функция для восстановления данных из кэша при инициализации
+const restoreFromCache = () => {
+  console.log('Восстанавливаем данные из кэша...')
+
+  // Восстанавливаем категории
+  try {
+    const categoriesCache = cacheService.get('categories') as { categories: import('@/types/api').Category[] } | null
+    if (categoriesCache && categoriesCache.categories) {
+      const activeCategories = categoriesCache.categories
+        .filter(category => category.is_active)
+        .sort((a, b) => a.sort_order - b.sort_order || a.name.localeCompare(b.name))
+
+      apiCategories.value = activeCategories
+      console.log(`Восстановлено ${activeCategories.length} категорий из кэша`)
+    }
+  } catch (error) {
+    console.warn('Ошибка восстановления категорий из кэша:', error)
+  }
+
+  // Восстанавливаем блюда и вариации для каждой категории
+  for (const category of apiCategories.value) {
+    try {
+      // Восстанавливаем блюда категории
+      const cacheKey = `category_dishes_${category.id}`
+      const cachedData = cacheService.get(cacheKey) as { dishes: ApiDish[] } | null
+
+      if (cachedData && cachedData.dishes) {
+        const activeDishes = cachedData.dishes
+          .filter((dish: ApiDish) => dish.is_available)
+          .sort((a: ApiDish, b: ApiDish) => a.sort_order - b.sort_order || a.name.localeCompare(b.name))
+
+        apiDishes.value[category.id] = activeDishes
+        console.log(`Восстановлено ${activeDishes.length} блюд для категории ${category.id}`)
+
+        // Восстанавливаем вариации для каждого блюда
+        for (const dish of activeDishes) {
+          try {
+            const variationsCacheKey = `dish_variations_${dish.id}`
+            const cachedVariations = cacheService.get(variationsCacheKey) as { variations: ApiDishVariation[] } | null
+
+            if (cachedVariations && cachedVariations.variations) {
+              const activeVariations = cachedVariations.variations
+                .filter((variation: ApiDishVariation) => variation.is_available)
+                .sort((a: ApiDishVariation, b: ApiDishVariation) => a.sort_order - b.sort_order || a.name.localeCompare(b.name))
+
+              dishVariations.value[dish.id] = activeVariations
+            }
+          } catch (error) {
+            console.warn(`Ошибка восстановления вариаций для блюда ${dish.id}:`, error)
+          }
+        }
+      }
+    } catch (error) {
+      console.warn(`Ошибка восстановления блюд для категории ${category.id}:`, error)
+    }
+  }
+
+  // Восстанавливаем зоны (используем те же ключи что и в DashboardView)
+  try {
+    const locationsCache = cacheService.get('locations') as { locations: Location[] } | null
+    if (locationsCache && locationsCache.locations) {
+      const activeLocations = locationsCache.locations
+        .filter(location => location.is_active)
+        .sort((a, b) => a.name.localeCompare(b.name))
+
+      const apiZones = activeLocations.map(mapLocationToZone)
+      zones.value = apiZones
+
+      console.log(`Восстановлено ${apiZones.length} зон из кэша`)
+    }
+  } catch (error) {
+    console.warn('Ошибка восстановления зон из кэша:', error)
+  }
+
+  // Восстанавливаем столики (используем те же ключи что и в DashboardView)
+  try {
+    const tablesCache = cacheService.get('tables') as { tables: (import('@/types/api').Table & { current_order_id?: number | null })[] } | null
+    if (tablesCache && tablesCache.tables && zones.value.length > 0) {
+      // Получаем активные зоны для фильтрации
+      const activeLocationIds = zones.value.map(zone => parseInt(zone.id))
+
+      const activeTables = tablesCache.tables.filter(table =>
+        table.is_active && activeLocationIds.includes(table.location_id)
+      )
+
+      // Создаем список локаций для маппинга
+      const locationsForMapping = zones.value.map(zone => ({
+        id: parseInt(zone.id),
+        name: zone.name,
+        color: zone.color,
+        is_active: true
+      })) as Location[]
+
+      const uiTables = activeTables.map(table => mapApiTableToUITable(table, locationsForMapping))
+      availableTables.value = uiTables
+
+      console.log(`Восстановлено ${uiTables.length} столиков из кэша`)
+    }
+  } catch (error) {
+    console.warn('Ошибка восстановления столиков из кэша:', error)
+  }
+
+  console.log('Восстановление из кэша завершено')
+}
+
 // Функция для преобразования API Location в Zone
 const mapLocationToZone = (location: Location): Zone => {
   return {
@@ -1250,6 +1508,9 @@ const loadZones = async () => {
     } else {
       locationsArray = []
     }
+
+    // Кэшируем данные локаций (используем те же ключи что и в DashboardView)
+    cacheService.set('locations', { locations: locationsArray }, { ttl: 30 * 60 * 1000 }) // 30 минут
 
     // Фильтруем только активные локации
     const filteredLocations = locationsArray
@@ -1320,6 +1581,9 @@ const loadTables = async () => {
     } else {
       tablesArray = []
     }
+
+    // Кэшируем данные столиков (используем те же ключи что и в DashboardView)
+    cacheService.set('tables', { tables: tablesArray }, { ttl: 30 * 60 * 1000 }) // 30 минут
 
     // Получаем только активные локации для фильтрации
     const activeLocationIds = locationsArray
@@ -1409,33 +1673,6 @@ const loadCategories = async () => {
   } finally {
     isLoadingCategories.value = false
   }
-}
-
-// Функция предзагрузки блюд для всех категорий
-const preloadAllCategories = async () => {
-  // Получаем все API категории
-  const categoriesToLoad = apiCategories.value.filter(category =>
-    !apiDishes.value[category.id] && !loadingDishesForCategories.value.has(category.id)
-  )
-
-  if (categoriesToLoad.length === 0) {
-    return
-  }
-
-  console.log(`Предзагрузка блюд для ${categoriesToLoad.length} категорий...`)
-
-  // Загружаем блюда для всех категорий параллельно, но с небольшой задержкой
-  const promises = categoriesToLoad.map((category, index) =>
-    new Promise<void>(resolve => {
-      // Добавляем небольшую задержку между запросами, чтобы не перегружать сервер
-      setTimeout(() => {
-        loadDishesForCategory(category.id).finally(() => resolve())
-      }, index * 200) // 200ms между запросами
-    })
-  )
-
-  await Promise.all(promises)
-  console.log('Предзагрузка всех категорий завершена')
 }
 
 // Функция загрузки блюд для категории
@@ -1544,28 +1781,29 @@ onMounted(async () => {
   updateTime()
   timeInterval = setInterval(updateTime, 1000) as unknown as number
 
-  // Загружаем зоны, столики и категории при инициализации компонента
-  await Promise.all([
+  // Сначала восстанавливаем данные из кэша для быстрого отображения
+  restoreFromCache()
+
+  // Загружаем зоны и столики (они не так критичны для основного интерфейса)
+  const zonesAndTablesPromise = Promise.all([
     loadZones(),
-    loadTables(),
-    loadCategories()
-  ])
+    loadTables()
+  ]).then(() => {
+    // Сохраняем dashboard timestamp после успешной загрузки зон и столиков
+    cacheService.set('_dashboard_cache_timestamp', new Date().toISOString(), { ttl: 60 * 60 * 1000 }) // 60 минут
+    console.log('Зоны и столики загружены, dashboard timestamp обновлен')
+  }).catch(error => {
+    console.warn('Ошибка загрузки зон и столиков:', error)
+  })
+
+  // Если в кэше нет категорий, загружаем их сначала
+  if (apiCategories.value.length === 0) {
+    await loadCategories()
+  }
 
   // Устанавливаем первую доступную категорию как активную
   if (combinedCategories.value.length > 0 && !activeCategory.value) {
     activeCategory.value = combinedCategories.value[0].id
-
-    // Загружаем блюда для первой категории сразу
-    const firstCategory = combinedCategories.value[0]
-    const firstCategoryId = parseInt(firstCategory.id)
-    if (!isNaN(firstCategoryId)) {
-      await loadDishesForCategory(firstCategoryId)
-
-      // Запускаем предзагрузку остальных категорий в фоновом режиме
-      preloadAllCategories().catch(error => {
-        console.warn('Ошибка предзагрузки категорий:', error)
-      })
-    }
   }
 
   // Получаем столик из роута если есть
@@ -1578,8 +1816,20 @@ onMounted(async () => {
     openOrderTypeModal()
   }
 
-  // Предзагрузка всех категорий в фоновом режиме
-  preloadAllCategories()
+  // Ждём загрузки зон и столиков
+  await zonesAndTablesPromise
+
+  // Проверяем актуальность кэша и запускаем загрузку только при необходимости
+  const shouldUpdateCache = checkIfCacheNeedsUpdate()
+
+  if (shouldUpdateCache) {
+    console.log('Кэш устарел или отсутствует, запускаем фоновую загрузку...')
+    loadAllDataInitial().catch(error => {
+      console.warn('Ошибка фоновой загрузки всех данных:', error)
+    })
+  } else {
+    console.log('Кэш актуален, загрузка с сервера не требуется')
+  }
 })
 
 onUnmounted(() => {
@@ -1587,4 +1837,102 @@ onUnmounted(() => {
     clearInterval(timeInterval)
   }
 })
+
+// Отладочные функции кэша
+const getCacheInfo = () => {
+  const info = apiService.getCacheInfo()
+  console.log('Информация о кэше:', info)
+
+  notificationStore.addNotification({
+    type: 'info',
+    title: 'Кэш приложения',
+    message: `Сохранено ${info.keys.length} записей, размер: ${Math.round(info.totalSize / 1024)}KB`,
+    read: false,
+    sound: false
+  })
+}
+
+// Добавляем функцию очистки кэша (для отладки)
+const clearAllCache = () => {
+  apiService.clearCache()
+
+  notificationStore.addNotification({
+    type: 'success',
+    title: 'Кэш очищен',
+    message: 'Все данные будут загружены заново при следующем обращении',
+    read: false,
+    sound: false
+  })
+}
+
+// Глобальные функции для отладки (доступны в консоли браузера)
+if (typeof window !== 'undefined') {
+  // @ts-expect-error - добавляем глобальный объект для отладки
+  window.qresDebug = {
+    getCacheInfo,
+    clearAllCache,
+    forceReload: () => {
+      loadAllDataInitial().then(() => {
+        notificationStore.addNotification({
+          type: 'success',
+          title: 'Данные обновлены',
+          message: 'Все данные принудительно обновлены из API',
+          read: false,
+          sound: false
+        })
+      })
+    },
+    restoreFromCache: () => {
+      restoreFromCache()
+      notificationStore.addNotification({
+        type: 'info',
+        title: 'Данные восстановлены',
+        message: 'Данные восстановлены из кэша',
+        read: false,
+        sound: false
+      })
+    },
+    loadAll: () => {
+      loadAllDataInitial().then(() => {
+        notificationStore.addNotification({
+          type: 'success',
+          title: 'Полная загрузка завершена',
+          message: 'Все данные загружены и сохранены в кэш',
+          read: false,
+          sound: false
+        })
+      })
+    },
+    // Добавляем функции для зон и столиков (совместимость с DashboardView)
+    getCacheInfoZones: () => {
+      const locationsCache = cacheService.get('locations')
+      const tablesCache = cacheService.get('tables')
+      const dashboardTimestamp = cacheService.get('_dashboard_cache_timestamp')
+
+      console.log('Кэш зон и столиков (CreateOrderView):', {
+        locations: locationsCache ? 'Есть' : 'Отсутствует',
+        tables: tablesCache ? 'Есть' : 'Отсутствует',
+        dashboardTimestamp: dashboardTimestamp || 'Отсутствует',
+        zonesInMemory: zones.value.length,
+        tablesInMemory: availableTables.value.length
+      })
+    },
+    clearZonesCache: () => {
+      cacheService.remove('locations')
+      cacheService.remove('tables')
+      cacheService.remove('_dashboard_cache_timestamp')
+      zones.value = []
+      availableTables.value = []
+      console.log('Кэш зон и столиков очищен')
+    },
+    forceReloadZones: () => {
+      Promise.all([loadZones(), loadTables()]).then(() => {
+        cacheService.set('_dashboard_cache_timestamp', new Date().toISOString(), { ttl: 60 * 60 * 1000 })
+        console.log('Принудительная перезагрузка зон и столиков завершена')
+      })
+    }
+  }
+
+  console.log('QRes Debug доступен в window.qresDebug')
+}
 </script>

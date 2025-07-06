@@ -1,4 +1,5 @@
 import axios, { type AxiosInstance, type AxiosResponse } from 'axios'
+import { cacheService, CACHE_KEYS, CACHE_TTL } from './cache'
 import type {
   AuthResponse,
   User,
@@ -190,9 +191,15 @@ class ApiService {
   // СТОЛИКИ
   // ===================
 
-  async getTables(): Promise<Table[]> {
-    const response = await this.api.get<Table[]>('/tables/')
-    return response.data
+  async getTables(options: { force?: boolean } = {}): Promise<Table[]> {
+    return cacheService.getOrFetch(
+      CACHE_KEYS.TABLES,
+      async () => {
+        const response = await this.api.get<Table[]>('/tables/')
+        return response.data
+      },
+      { ttl: CACHE_TTL.MEDIUM, force: options.force }
+    )
   }
 
   async createTable(tableData: CreateTableRequest): Promise<Table> {
@@ -272,9 +279,15 @@ class ApiService {
   }
 
   // Вариации блюд
-  async getDishVariations(dishId: number): Promise<DishVariationsResponse> {
-    const response = await this.api.get<DishVariationsResponse>(`/dishes/${dishId}/variations/`)
-    return response.data
+  async getDishVariations(dishId: number, options: { force?: boolean } = {}): Promise<DishVariationsResponse> {
+    return cacheService.getOrFetch(
+      CACHE_KEYS.DISH_VARIATIONS(dishId),
+      async () => {
+        const response = await this.api.get<DishVariationsResponse>(`/dishes/${dishId}/variations/`)
+        return response.data
+      },
+      { ttl: CACHE_TTL.MEDIUM, force: options.force }
+    )
   }
 
   async createDishVariation(dishId: number, variationData: CreateDishVariationRequest): Promise<DishVariation> {
@@ -466,9 +479,15 @@ class ApiService {
   // ЛОКАЦИИ (ЗОНЫ)
   // ===================
 
-  async getLocations(): Promise<Location[]> {
-    const response = await this.api.get<Location[]>('/locations/')
-    return response.data
+  async getLocations(options: { force?: boolean } = {}): Promise<Location[]> {
+    return cacheService.getOrFetch(
+      CACHE_KEYS.LOCATIONS,
+      async () => {
+        const response = await this.api.get<Location[]>('/locations/')
+        return response.data
+      },
+      { ttl: CACHE_TTL.LONG, force: options.force }
+    )
   }
 
   async createLocation(locationData: CreateLocationRequest): Promise<Location> {
@@ -499,9 +518,15 @@ class ApiService {
   // КАТЕГОРИИ
   // ===================
 
-  async getCategories(): Promise<CategoriesResponse> {
-    const response = await this.api.get<CategoriesResponse>('/categories/')
-    return response.data
+  async getCategories(options: { force?: boolean } = {}): Promise<CategoriesResponse> {
+    return cacheService.getOrFetch(
+      CACHE_KEYS.CATEGORIES,
+      async () => {
+        const response = await this.api.get<CategoriesResponse>('/categories/')
+        return response.data
+      },
+      { ttl: CACHE_TTL.LONG, force: options.force }
+    )
   }
 
   async createCategory(categoryData: CreateCategoryRequest): Promise<Category> {
@@ -519,9 +544,15 @@ class ApiService {
     return response.data
   }
 
-  async getCategoryDishes(categoryId: number): Promise<DishesResponse> {
-    const response = await this.api.get<DishesResponse>(`/categories/${categoryId}/dishes`)
-    return response.data
+  async getCategoryDishes(categoryId: number, options: { force?: boolean } = {}): Promise<DishesResponse> {
+    return cacheService.getOrFetch(
+      CACHE_KEYS.DISHES(categoryId),
+      async () => {
+        const response = await this.api.get<DishesResponse>(`/categories/${categoryId}/dishes`)
+        return response.data
+      },
+      { ttl: CACHE_TTL.MEDIUM, force: options.force }
+    )
   }
 
   async deactivateCategory(categoryId: number): Promise<void> {
@@ -559,6 +590,104 @@ class ApiService {
 
   async deleteIngredient(ingredientId: number): Promise<void> {
     await this.api.delete(`/ingredients/${ingredientId}`)
+  }
+
+  // ===================
+  // КЭШИРОВАНИЕ
+  // ===================
+
+  /**
+   * Очистить весь кэш
+   */
+  clearCache(): void {
+    cacheService.clear()
+  }
+
+  /**
+   * Очистить устаревшие записи кэша
+   */
+  cleanupCache(): void {
+    cacheService.cleanup()
+  }
+
+  /**
+   * Получить информацию о кэше
+   */
+  getCacheInfo(): { keys: string[], totalSize: number } {
+    return cacheService.getInfo()
+  }
+
+  /**
+   * Принудительно обновить все основные данные
+   */
+  async refreshAllData(): Promise<void> {
+    const forceOptions = { force: true }
+
+    await Promise.all([
+      this.getCategories(forceOptions),
+      this.getLocations(forceOptions),
+      this.getTables(forceOptions)
+    ])
+  }
+
+  /**
+   * Предзагрузить данные для быстрого старта приложения
+   */
+  async preloadData(): Promise<void> {
+    try {
+      // Загружаем основные данные
+      const [categories, locations, tables] = await Promise.all([
+        this.getCategories(),
+        this.getLocations(),
+        this.getTables()
+      ])
+
+      console.log('Предзагружены основные данные:', {
+        categories: categories.categories.length,
+        locations: locations.length,
+        tables: tables.length
+      })
+
+      // Предзагружаем блюда для всех категорий с задержкой
+      const activeCategories = categories.categories.filter(cat => cat.is_active)
+
+      for (let i = 0; i < activeCategories.length; i++) {
+        const category = activeCategories[i]
+
+        // Добавляем задержку между запросами
+        if (i > 0) {
+          await new Promise(resolve => setTimeout(resolve, 300))
+        }
+
+        try {
+          const dishes = await this.getCategoryDishes(category.id)
+          console.log(`Предзагружены блюда для категории "${category.name}": ${dishes.dishes.length} блюд`)
+
+          // Предзагружаем вариации для первых нескольких блюд каждой категории
+          const firstDishes = dishes.dishes.slice(0, 3) // Только первые 3 блюда
+
+          for (let j = 0; j < firstDishes.length; j++) {
+            const dish = firstDishes[j]
+
+            if (j > 0) {
+              await new Promise(resolve => setTimeout(resolve, 100))
+            }
+
+            try {
+              await this.getDishVariations(dish.id)
+            } catch (error) {
+              console.warn(`Ошибка предзагрузки вариаций для блюда ${dish.id}:`, error)
+            }
+          }
+        } catch (error) {
+          console.warn(`Ошибка предзагрузки блюд для категории ${category.id}:`, error)
+        }
+      }
+
+      console.log('Предзагрузка данных завершена')
+    } catch (error) {
+      console.error('Ошибка предзагрузки данных:', error)
+    }
   }
 }
 
