@@ -1,4 +1,18 @@
-import type { WSMessage, NotificationMessage } from '@/types'
+import type {
+  WebSocketMessage,
+  NotificationMessage,
+  OrderStatusChangedEvent,
+  ItemStatusChangedEvent
+} from '@/types'
+
+interface NotificationStore {
+  addNotification: (notification: NotificationMessage) => void
+}
+
+interface OrderStore {
+  updateOrderStatusLocal?: (orderId: number, status: string) => void
+  updateOrderItemStatus?: (orderId: number, itemId: number, status: string) => void
+}
 
 export class WebSocketService {
   private ws: WebSocket | null = null
@@ -7,10 +21,10 @@ export class WebSocketService {
   private reconnectInterval = 5000
   private reconnectTimer: number | null = null
   private isManualClose = false
-  private notificationStore: any = null
-  private orderStore: any = null
+  private notificationStore: NotificationStore | null = null
+  private orderStore: OrderStore | null = null
 
-  setStores(notificationStore: any, orderStore: any) {
+  setStores(notificationStore: NotificationStore, orderStore: OrderStore) {
     this.notificationStore = notificationStore
     this.orderStore = orderStore
   }
@@ -35,7 +49,7 @@ export class WebSocketService {
 
     this.ws.onmessage = (event) => {
       try {
-        const message: WSMessage = JSON.parse(event.data)
+        const message: WebSocketMessage = JSON.parse(event.data)
         console.log('📨 WebSocket сообщение:', message)
         this.handleMessage(message)
       } catch (error) {
@@ -73,7 +87,7 @@ export class WebSocketService {
     }
   }
 
-  private handleMessage(message: WSMessage): void {
+  private handleMessage(message: WebSocketMessage): void {
     if (!this.notificationStore || !this.orderStore) return
 
     switch (message.type) {
@@ -82,14 +96,16 @@ export class WebSocketService {
         break
 
       case 'order_status_changed':
-        this.handleOrderStatusChanged(message)
-        this.orderStore.updateOrderStatusLocal(message.order_id, message.data.new_status)
+        this.handleOrderStatusChanged(message as OrderStatusChangedEvent)
+        if (message.order_id && (message as OrderStatusChangedEvent).data?.new_status && this.orderStore?.updateOrderStatusLocal) {
+          this.orderStore.updateOrderStatusLocal(message.order_id, (message as OrderStatusChangedEvent).data.new_status)
+        }
         break
 
       case 'item_status_changed':
-        this.handleItemStatusChanged(message)
-        if (message.item_id) {
-          this.orderStore.updateOrderItemStatus(message.order_id, message.item_id, message.data.status)
+        this.handleItemStatusChanged(message as ItemStatusChangedEvent)
+        if (message.item_id && message.order_id && (message as ItemStatusChangedEvent).data?.status && this.orderStore?.updateOrderItemStatus) {
+          this.orderStore.updateOrderItemStatus(message.order_id, message.item_id, (message as ItemStatusChangedEvent).data.status)
         }
         break
 
@@ -98,9 +114,9 @@ export class WebSocketService {
     }
   }
 
-  private handleOrderCreated(message: WSMessage): void {
+  private handleOrderCreated(message: WebSocketMessage): void {
     if (!this.notificationStore) return
-    
+
     const notification: NotificationMessage = {
       id: `order_created_${message.order_id}_${Date.now()}`,
       type: 'info',
@@ -114,10 +130,10 @@ export class WebSocketService {
     this.notificationStore.addNotification(notification)
   }
 
-  private handleOrderStatusChanged(message: WSMessage): void {
+  private handleOrderStatusChanged(message: OrderStatusChangedEvent): void {
     if (!this.notificationStore) return
-    
-    const { old_status, new_status, message: statusMessage } = message.data
+
+    const { new_status, message: statusMessage } = message.data
 
     let notificationType: 'info' | 'success' | 'warning' | 'error' = 'info'
     let shouldPlaySound = false
@@ -156,9 +172,9 @@ export class WebSocketService {
     }
   }
 
-  private handleItemStatusChanged(message: WSMessage): void {
+  private handleItemStatusChanged(message: ItemStatusChangedEvent): void {
     if (!this.notificationStore) return
-    
+
     const { status, dish_name } = message.data
 
     if (status === 'ready') {
@@ -210,12 +226,12 @@ export class WebSocketService {
   disconnect(): void {
     this.isManualClose = true
     this.clearReconnectTimer()
-    
+
     if (this.ws) {
       this.ws.close()
       this.ws = null
     }
-    
+
     this.reconnectAttempts = 0
     console.log('🔌 WebSocket отключен вручную')
   }
@@ -226,7 +242,7 @@ export class WebSocketService {
 
   getConnectionState(): string {
     if (!this.ws) return 'disconnected'
-    
+
     switch (this.ws.readyState) {
       case WebSocket.CONNECTING:
         return 'connecting'

@@ -130,6 +130,63 @@ export const useOrderStore = defineStore('orders', () => {
     }
   }
 
+  // Новые методы для работы с позициями заказов
+  async function updateOrderItemStatus(orderId: number, itemId: number, status: OrderItemStatus) {
+    isLoading.value = true
+    error.value = null
+
+    try {
+      await apiService.updateOrderItemStatus(orderId, itemId, status)
+
+      // Обновляем локальное состояние
+      const order = orders.value.find(o => o.id === orderId)
+      if (order) {
+        const item = order.items.find(i => i.id === itemId)
+        if (item) {
+          item.status = status
+        }
+      }
+
+      if (currentOrder.value?.id === orderId) {
+        const item = currentOrder.value.items.find(i => i.id === itemId)
+        if (item) {
+          item.status = status
+        }
+      }
+    } catch (err) {
+      error.value = extractErrorMessage(err)
+      console.error('Ошибка при обновлении статуса позиции заказа:', err)
+      throw err
+    } finally {
+      isLoading.value = false
+    }
+  }
+
+  async function cancelOrder(orderId: number) {
+    isLoading.value = true
+    error.value = null
+
+    try {
+      await apiService.cancelOrder(orderId)
+
+      // Обновляем локальное состояние
+      const index = orders.value.findIndex(o => o.id === orderId)
+      if (index !== -1) {
+        orders.value[index].status = 'cancelled'
+      }
+
+      if (currentOrder.value?.id === orderId) {
+        currentOrder.value.status = 'cancelled'
+      }
+    } catch (err) {
+      error.value = extractErrorMessage(err)
+      console.error('Ошибка при отмене заказа:', err)
+      throw err
+    } finally {
+      isLoading.value = false
+    }
+  }
+
   // Обновление статуса заказа (локально, от WebSocket)
   const updateOrderStatusLocal = (orderId: number, status: OrderStatus): void => {
     const order = orders.value.find(o => o.id === orderId)
@@ -143,7 +200,7 @@ export const useOrderStore = defineStore('orders', () => {
   }
 
   // Обновление статуса позиции заказа (локально, от WebSocket)
-  const updateOrderItemStatus = (orderId: number, itemId: number, status: OrderItemStatus): void => {
+  const updateOrderItemStatusLocal = (orderId: number, itemId: number, status: OrderItemStatus): void => {
     const order = orders.value.find(o => o.id === orderId)
     if (order) {
       const item = order.items.find(i => i.id === itemId)
@@ -290,8 +347,10 @@ export const useOrderStore = defineStore('orders', () => {
     createOrder,
     fetchOrder,
     updateOrderStatus,
-    updateOrderStatusLocal,
     updateOrderItemStatus,
+    cancelOrder,
+    updateOrderStatusLocal,
+    updateOrderItemStatusLocal,
     updateOrderPayment,
     addOrderItem,
     updateOrderItem,

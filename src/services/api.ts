@@ -8,7 +8,29 @@ import type {
   Dish,
   Category,
   DishVariation,
-  PaymentMethod
+  PaymentMethod,
+  Location,
+  Ingredient,
+  AllergenInfo,
+  OrderStats,
+  SystemHealth,
+  CreateUserRequest,
+  UpdateUserRequest,
+  ChangePasswordRequest,
+  CreateTableRequest,
+  UpdateTableRequest,
+  CreateLocationRequest,
+  UpdateLocationRequest,
+  CreateCategoryRequest,
+  UpdateCategoryRequest,
+  CreateDishRequest,
+  UpdateDishRequest,
+  CreateDishVariationRequest,
+  UpdateDishVariationRequest,
+  CreateIngredientRequest,
+  UpdateIngredientRequest,
+  CreatePaymentMethodRequest,
+  UpdatePaymentMethodRequest
 } from '@/types/api'
 
 class ApiService {
@@ -111,6 +133,34 @@ class ApiService {
     return response.data
   }
 
+  async getUsers(): Promise<User[]> {
+    const response = await this.api.get<User[]>('/users/')
+    return response.data
+  }
+
+  async createUser(userData: CreateUserRequest): Promise<User> {
+    const response = await this.api.post<User>('/users/', userData)
+    return response.data
+  }
+
+  async getUser(userId: number): Promise<User> {
+    const response = await this.api.get<User>(`/users/${userId}`)
+    return response.data
+  }
+
+  async updateUser(userId: number, userData: UpdateUserRequest): Promise<User> {
+    const response = await this.api.patch<User>(`/users/${userId}`, userData)
+    return response.data
+  }
+
+  async changeUserPassword(userId: number, passwordData: ChangePasswordRequest): Promise<void> {
+    await this.api.patch(`/users/${userId}/password`, passwordData)
+  }
+
+  async deactivateUser(userId: number): Promise<void> {
+    await this.api.delete(`/users/${userId}`)
+  }
+
   // ===================
   // СТОЛИКИ
   // ===================
@@ -120,8 +170,18 @@ class ApiService {
     return response.data
   }
 
+  async createTable(tableData: CreateTableRequest): Promise<Table> {
+    const response = await this.api.post<Table>('/tables/', tableData)
+    return response.data
+  }
+
   async getTable(tableId: number): Promise<Table> {
     const response = await this.api.get<Table>(`/tables/${tableId}`)
+    return response.data
+  }
+
+  async updateTable(tableId: number, tableData: UpdateTableRequest): Promise<Table> {
+    const response = await this.api.patch<Table>(`/tables/${tableId}`, tableData)
     return response.data
   }
 
@@ -137,8 +197,12 @@ class ApiService {
     return response.data
   }
 
+  async deactivateTable(tableId: number): Promise<void> {
+    await this.api.delete(`/tables/${tableId}`)
+  }
+
   // ===================
-  // МЕНЮ
+  // МЕНЮ (БЛЮДА)
   // ===================
 
   async getMenu(): Promise<{
@@ -156,9 +220,62 @@ class ApiService {
     return response.data
   }
 
+  async createDish(dishData: CreateDishRequest): Promise<Dish> {
+    const response = await this.api.post<Dish>('/dishes/', dishData)
+    return response.data
+  }
+
+  async getDish(dishId: number): Promise<Dish> {
+    const response = await this.api.get<Dish>(`/dishes/${dishId}`)
+    return response.data
+  }
+
+  async updateDish(dishId: number, dishData: UpdateDishRequest): Promise<Dish> {
+    const response = await this.api.patch<Dish>(`/dishes/${dishId}`, dishData)
+    return response.data
+  }
+
+  async updateDishAvailability(dishId: number, isAvailable: boolean): Promise<Dish> {
+    const response = await this.api.patch<Dish>(`/dishes/${dishId}/availability`, {
+      is_available: isAvailable
+    })
+    return response.data
+  }
+
+  async deactivateDish(dishId: number): Promise<void> {
+    await this.api.delete(`/dishes/${dishId}`)
+  }
+
+  // Вариации блюд
   async getDishVariations(dishId: number): Promise<DishVariation[]> {
     const response = await this.api.get<DishVariation[]>(`/dishes/${dishId}/variations/`)
     return response.data
+  }
+
+  async createDishVariation(dishId: number, variationData: CreateDishVariationRequest): Promise<DishVariation> {
+    const response = await this.api.post<DishVariation>(`/dishes/${dishId}/variations/`, variationData)
+    return response.data
+  }
+
+  async getDishVariation(dishId: number, variationId: number): Promise<DishVariation> {
+    const response = await this.api.get<DishVariation>(`/dishes/${dishId}/variations/${variationId}`)
+    return response.data
+  }
+
+  async updateDishVariation(dishId: number, variationId: number, variationData: UpdateDishVariationRequest): Promise<DishVariation> {
+    const response = await this.api.patch<DishVariation>(`/dishes/${dishId}/variations/${variationId}`, variationData)
+    return response.data
+  }
+
+  async updateDishVariationAvailability(dishId: number, variationId: number, isAvailable: boolean): Promise<DishVariation> {
+    const response = await this.api.patch<DishVariation>(`/dishes/${dishId}/variations/${variationId}/availability`, {
+      is_available: isAvailable
+    })
+    return response.data
+  }
+
+  async deleteDishVariation(dishId: number, variationId: number): Promise<void> {
+    await this.api.delete(`/dishes/${dishId}/variations/${variationId}`)
   }
 
   // ===================
@@ -210,16 +327,67 @@ class ApiService {
     await this.api.patch(`/orders/${orderId}/items/${itemId}`, data)
   }
 
+  async updateOrderItemStatus(orderId: number, itemId: number, status: string): Promise<void> {
+    await this.api.patch(`/orders/${orderId}/items/${itemId}/status`, { status })
+  }
+
   async deleteOrderItem(orderId: number, itemId: number): Promise<void> {
     await this.api.delete(`/orders/${orderId}/items/${itemId}`)
   }
 
+  async getOrderStats(): Promise<OrderStats> {
+    const response = await this.api.get<OrderStats>('/orders/stats/summary')
+    return response.data
+  }
+
+  async cancelOrder(orderId: number): Promise<void> {
+    await this.api.delete(`/orders/${orderId}`)
+  }
+
   // ===================
-  // ОПЛАТА
+  // СПОСОБЫ ОПЛАТЫ
   // ===================
 
   async getPaymentMethods(): Promise<PaymentMethod[]> {
+    const response = await this.api.get<PaymentMethod[]>('/payment-methods/')
+    return response.data
+  }
+
+  async getActivePaymentMethods(): Promise<PaymentMethod[]> {
     const response = await this.api.get<PaymentMethod[]>('/payment-methods/active')
+    return response.data
+  }
+
+  async createPaymentMethod(paymentMethodData: CreatePaymentMethodRequest): Promise<PaymentMethod> {
+    const response = await this.api.post<PaymentMethod>('/payment-methods/', paymentMethodData)
+    return response.data
+  }
+
+  async getPaymentMethod(paymentMethodId: number): Promise<PaymentMethod> {
+    const response = await this.api.get<PaymentMethod>(`/payment-methods/${paymentMethodId}`)
+    return response.data
+  }
+
+  async updatePaymentMethod(paymentMethodId: number, paymentMethodData: UpdatePaymentMethodRequest): Promise<PaymentMethod> {
+    const response = await this.api.patch<PaymentMethod>(`/payment-methods/${paymentMethodId}`, paymentMethodData)
+    return response.data
+  }
+
+  async deactivatePaymentMethod(paymentMethodId: number): Promise<void> {
+    await this.api.delete(`/payment-methods/${paymentMethodId}`)
+  }
+
+  // ===================
+  // СИСТЕМА
+  // ===================
+
+  async getSystemHealth(): Promise<SystemHealth> {
+    const response = await this.api.get<SystemHealth>('/health')
+    return response.data
+  }
+
+  async getRoot(): Promise<{ message: string; version: string }> {
+    const response = await this.api.get<{ message: string; version: string }>('/')
     return response.data
   }
 
@@ -237,6 +405,131 @@ class ApiService {
 
   getWebSocketUrl(): string {
     return import.meta.env.VITE_WS_URL || 'ws://localhost:8000/ws'
+  }
+
+  // ===================
+  // ВСПОМОГАТЕЛЬНЫЕ МЕТОДЫ
+  // ===================
+
+  // Метод для построения WebSocket URL для заказов
+  getOrdersWebSocketUrl(): string {
+    const wsUrl = this.getWebSocketUrl()
+    return `${wsUrl}/orders`
+  }
+
+  // Метод для получения полного URL к изображению
+  getImageUrl(relativePath: string): string {
+    if (!relativePath) return ''
+    if (relativePath.startsWith('http')) return relativePath
+    return `${this.baseURL}${relativePath.startsWith('/') ? '' : '/'}${relativePath}`
+  }
+
+  // Метод для проверки прав доступа
+  checkRole(requiredRoles: string[]): boolean {
+    // Здесь можно добавить логику проверки ролей пользователя
+    // В данном случае возвращаем true, но в реальном приложении
+    // нужно проверять роль текущего пользователя
+    console.log('Проверка ролей:', requiredRoles)
+    return true
+  }
+
+  // ===================
+  // ЛОКАЦИИ (ЗОНЫ)
+  // ===================
+
+  async getLocations(): Promise<Location[]> {
+    const response = await this.api.get<Location[]>('/locations/')
+    return response.data
+  }
+
+  async createLocation(locationData: CreateLocationRequest): Promise<Location> {
+    const response = await this.api.post<Location>('/locations/', locationData)
+    return response.data
+  }
+
+  async getLocation(locationId: number): Promise<Location> {
+    const response = await this.api.get<Location>(`/locations/${locationId}`)
+    return response.data
+  }
+
+  async updateLocation(locationId: number, locationData: UpdateLocationRequest): Promise<Location> {
+    const response = await this.api.patch<Location>(`/locations/${locationId}`, locationData)
+    return response.data
+  }
+
+  async getLocationTables(locationId: number): Promise<Table[]> {
+    const response = await this.api.get<Table[]>(`/locations/${locationId}/tables`)
+    return response.data
+  }
+
+  async deactivateLocation(locationId: number): Promise<void> {
+    await this.api.delete(`/locations/${locationId}`)
+  }
+
+  // ===================
+  // КАТЕГОРИИ
+  // ===================
+
+  async getCategories(): Promise<Category[]> {
+    const response = await this.api.get<Category[]>('/categories/')
+    return response.data
+  }
+
+  async createCategory(categoryData: CreateCategoryRequest): Promise<Category> {
+    const response = await this.api.post<Category>('/categories/', categoryData)
+    return response.data
+  }
+
+  async getCategory(categoryId: number): Promise<Category> {
+    const response = await this.api.get<Category>(`/categories/${categoryId}`)
+    return response.data
+  }
+
+  async updateCategory(categoryId: number, categoryData: UpdateCategoryRequest): Promise<Category> {
+    const response = await this.api.patch<Category>(`/categories/${categoryId}`, categoryData)
+    return response.data
+  }
+
+  async getCategoryDishes(categoryId: number): Promise<Dish[]> {
+    const response = await this.api.get<Dish[]>(`/categories/${categoryId}/dishes`)
+    return response.data
+  }
+
+  async deactivateCategory(categoryId: number): Promise<void> {
+    await this.api.delete(`/categories/${categoryId}`)
+  }
+
+  // ===================
+  // ИНГРЕДИЕНТЫ
+  // ===================
+
+  async getIngredients(): Promise<Ingredient[]> {
+    const response = await this.api.get<Ingredient[]>('/ingredients/')
+    return response.data
+  }
+
+  async createIngredient(ingredientData: CreateIngredientRequest): Promise<Ingredient> {
+    const response = await this.api.post<Ingredient>('/ingredients/', ingredientData)
+    return response.data
+  }
+
+  async getIngredient(ingredientId: number): Promise<Ingredient> {
+    const response = await this.api.get<Ingredient>(`/ingredients/${ingredientId}`)
+    return response.data
+  }
+
+  async updateIngredient(ingredientId: number, ingredientData: UpdateIngredientRequest): Promise<Ingredient> {
+    const response = await this.api.patch<Ingredient>(`/ingredients/${ingredientId}`, ingredientData)
+    return response.data
+  }
+
+  async getAllergens(): Promise<AllergenInfo[]> {
+    const response = await this.api.get<AllergenInfo[]>('/ingredients/allergens/list')
+    return response.data
+  }
+
+  async deleteIngredient(ingredientId: number): Promise<void> {
+    await this.api.delete(`/ingredients/${ingredientId}`)
   }
 }
 

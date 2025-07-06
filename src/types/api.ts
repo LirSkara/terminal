@@ -24,13 +24,16 @@ export interface User {
 
 // === ЛОКАЦИИ И СТОЛИКИ ===
 
-export interface Zone {
+export interface Location {
   id: number
   name: string
   description: string
   color: string
   is_active: boolean
 }
+
+// Для обратной совместимости
+export type Zone = Location
 
 export interface Table {
   id: number
@@ -382,5 +385,190 @@ export type NotificationType =
   | 'warning'
   | 'error'
 
-// === ЭКСПОРТ ВСЕХ ТИПОВ ===
-export * from './index'
+// === ИНГРЕДИЕНТЫ ===
+
+export interface Ingredient {
+  id: number
+  name: string
+  description?: string
+  is_allergen: boolean
+  allergen_type?: string
+  is_active: boolean
+}
+
+export interface AllergenInfo {
+  id: number
+  name: string
+  description?: string
+}
+
+// === СТАТИСТИКА ===
+
+export interface OrderStats {
+  total_orders: number
+  total_revenue: number
+  average_order_value: number
+  orders_by_status: Record<OrderStatus, number>
+  orders_by_payment_status: Record<PaymentStatus, number>
+  popular_dishes: Array<{
+    dish_id: number
+    dish_name: string
+    total_quantity: number
+    total_revenue: number
+  }>
+}
+
+export interface SystemHealth {
+  status: string
+  version: string
+  database: string
+  uptime: number
+  active_connections: number
+  memory_usage: number
+}
+
+// === ДОПОЛНИТЕЛЬНЫЕ ЗАПРОСЫ ===
+
+export interface CreateUserRequest {
+  username: string
+  full_name: string
+  password: string
+  role: 'waiter' | 'admin' | 'kitchen'
+  phone?: string
+  pin_code?: string
+}
+
+export interface UpdateUserRequest {
+  full_name?: string
+  role?: 'waiter' | 'admin' | 'kitchen'
+  phone?: string
+  pin_code?: string
+  is_active?: boolean
+  shift_active?: boolean
+}
+
+export interface ChangePasswordRequest {
+  new_password: string
+}
+
+export interface CreateTableRequest {
+  number: number
+  seats: number
+  location_id: number
+  description?: string
+}
+
+export interface UpdateTableRequest {
+  number?: number
+  seats?: number
+  location_id?: number
+  description?: string
+  is_active?: boolean
+}
+
+export interface CreateLocationRequest {
+  name: string
+  description: string
+  color: string
+}
+
+export interface UpdateLocationRequest {
+  name?: string
+  description?: string
+  color?: string
+  is_active?: boolean
+}
+
+export interface CreateCategoryRequest {
+  name: string
+  description: string
+  image_url?: string
+  sort_order: number
+}
+
+export interface UpdateCategoryRequest {
+  name?: string
+  description?: string
+  image_url?: string
+  sort_order?: number
+  is_active?: boolean
+}
+
+export interface CreateDishRequest {
+  name: string
+  description: string
+  category_id: number
+  main_image_url?: string
+  cooking_time: number
+  weight: number
+  calories: number
+  ingredients: number[]
+  sort_order: number
+  is_popular?: boolean
+}
+
+export interface UpdateDishRequest {
+  name?: string
+  description?: string
+  category_id?: number
+  main_image_url?: string
+  cooking_time?: number
+  weight?: number
+  calories?: number
+  ingredients?: number[]
+  sort_order?: number
+  is_popular?: boolean
+  is_available?: boolean
+}
+
+export interface CreateDishVariationRequest {
+  name: string
+  description: string
+  price: number
+  weight: number
+  calories: number
+  image_url?: string
+  sku: string
+  is_default?: boolean
+  sort_order: number
+}
+
+export interface UpdateDishVariationRequest {
+  name?: string
+  description?: string
+  price?: number
+  weight?: number
+  calories?: number
+  image_url?: string
+  sku?: string
+  is_default?: boolean
+  sort_order?: number
+  is_available?: boolean
+}
+
+export interface CreateIngredientRequest {
+  name: string
+  description?: string
+  is_allergen: boolean
+  allergen_type?: string
+}
+
+export interface UpdateIngredientRequest {
+  name?: string
+  description?: string
+  is_allergen?: boolean
+  allergen_type?: string
+  is_active?: boolean
+}
+
+export interface CreatePaymentMethodRequest {
+  name: string
+  is_active?: boolean
+}
+
+export interface UpdatePaymentMethodRequest {
+  name?: string
+  is_active?: boolean
+}
+
+// === ОБНОВЛЕННЫЕ ИНТЕРФЕЙСЫ ===
