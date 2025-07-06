@@ -27,7 +27,7 @@
             <div class="notification-message">{{ notification.message }}</div>
             <div class="notification-time">{{ formatRelativeTime(notification.timestamp) }}</div>
           </div>
-          <div 
+          <div
             class="notification-progress"
             :style="{ animationDuration: `${autoHideDuration}ms` }"
           ></div>
@@ -38,7 +38,7 @@
 </template>
 
 <script setup lang="ts">
-import { computed, ref, watch } from 'vue'
+import { computed, watch } from 'vue'
 import { useNotificationStore } from '@/stores/notifications'
 import { formatRelativeTime } from '@/utils/format'
 
@@ -48,7 +48,7 @@ const autoHideDuration = 5000 // 5 секунд
 const maxVisible = 3 // Максимум видимых уведомлений
 
 // Показываем только последние уведомления
-const visibleNotifications = computed(() => 
+const visibleNotifications = computed(() =>
   notificationStore.recentNotifications
     .filter(n => !n.read || isImportant(n.type))
     .slice(0, maxVisible)
@@ -96,7 +96,7 @@ watch(visibleNotifications, (newNotifications) => {
   right: 1rem;
   z-index: 1055;
   pointer-events: none;
-  
+
   @media (max-width: 576px) {
     left: 1rem;
     right: 1rem;
@@ -115,48 +115,48 @@ watch(visibleNotifications, (newNotifications) => {
   position: relative;
   cursor: pointer;
   backdrop-filter: blur(10px);
-  
+
   @media (max-width: 576px) {
     min-width: auto;
     max-width: none;
   }
-  
+
   &.notification-success {
     border-left: 4px solid var(--qres-success);
-    
+
     .notification-icon {
       color: var(--qres-success);
     }
   }
-  
+
   &.notification-error {
     border-left: 4px solid var(--qres-danger);
-    
+
     .notification-icon {
       color: var(--qres-danger);
     }
   }
-  
+
   &.notification-warning {
     border-left: 4px solid var(--qres-warning);
-    
+
     .notification-icon {
       color: var(--qres-warning);
     }
   }
-  
+
   &.notification-info {
     border-left: 4px solid var(--qres-primary);
-    
+
     .notification-icon {
       color: var(--qres-primary);
     }
   }
-  
+
   &.notification-unread {
     background: linear-gradient(135deg, rgba(255, 255, 255, 0.95) 0%, rgba(255, 255, 255, 0.9) 100%);
   }
-  
+
   &:hover {
     transform: translateX(-5px);
     box-shadow: 0 12px 40px rgba(0, 0, 0, 0.18);
@@ -189,7 +189,7 @@ watch(visibleNotifications, (newNotifications) => {
 .btn-close {
   opacity: 0.6;
   padding: 0.25rem;
-  
+
   &:hover {
     opacity: 1;
   }

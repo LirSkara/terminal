@@ -68,8 +68,18 @@ class ApiService {
         return response
       },
       (error) => {
+        // Логируем ошибку для отладки
+        console.error('API Error:', {
+          url: error.config?.url,
+          method: error.config?.method?.toUpperCase(),
+          status: error.response?.status,
+          message: error.response?.data?.detail || error.message
+        })
+
         if (error.response?.status === 401) {
           this.clearToken()
+          // Очищаем данные пользователя при разлогинивании
+          localStorage.removeItem('qres_user')
           window.location.href = '/login'
         }
         return Promise.reject(error)
@@ -87,6 +97,18 @@ class ApiService {
 
   private clearToken(): void {
     localStorage.removeItem('qres_token')
+  }
+
+  private getCurrentUserFromStorage(): User | null {
+    const userStr = localStorage.getItem('qres_user')
+    if (!userStr) return null
+
+    try {
+      return JSON.parse(userStr) as User
+    } catch (error) {
+      console.error('Ошибка при парсинге пользователя из localStorage:', error)
+      return null
+    }
   }
 
   // ===================
@@ -426,11 +448,15 @@ class ApiService {
 
   // Метод для проверки прав доступа
   checkRole(requiredRoles: string[]): boolean {
-    // Здесь можно добавить логику проверки ролей пользователя
-    // В данном случае возвращаем true, но в реальном приложении
-    // нужно проверять роль текущего пользователя
-    console.log('Проверка ролей:', requiredRoles)
-    return true
+    const user = this.getCurrentUserFromStorage()
+    if (!user) return false
+
+    return requiredRoles.includes(user.role)
+  }
+
+  // Метод для получения текущего пользователя из localStorage
+  getCurrentUserData(): User | null {
+    return this.getCurrentUserFromStorage()
   }
 
   // ===================
