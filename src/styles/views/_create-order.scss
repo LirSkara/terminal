@@ -108,17 +108,27 @@
 
 // Основной контент
 .order-content {
-  padding: 0 1rem 2rem;
+  padding: 0 0 2rem;
   position: relative;
   z-index: 1;
   height: calc(100vh - 340px); // Уменьшил высоту, чтобы учесть блок категорий
+
+  .container-fluid {
+    padding-left: 1rem;
+    padding-right: 1rem;
+  }
 }
 
 // Блок категорий
 .categories-section {
-  padding: 0 1rem 1rem;
+  padding: 0 0 1rem;
   position: relative;
   z-index: 1;
+
+  .container-fluid {
+    padding-left: 1rem;
+    padding-right: 1rem;
+  }
 }
 
 .categories-tabs {
