@@ -441,219 +441,7 @@ const paymentMethods = ref<PaymentMethod[]>([
   { id: 'online', name: 'Онлайн', icon: 'bi-phone' }
 ])
 
-// Демо данные категорий и блюд
-const categories = ref<Category[]>([
-  {
-    id: 'appetizers',
-    name: 'Закуски',
-    icon: 'bi-egg-fried',
-    color: '#e74c3c',
-    items: [
-      {
-        id: 'cheese-plate',
-        name: 'Сырная тарелка',
-        description: 'Ассорти из итальянских сыров с медом и орехами',
-        image: 'https://images.unsplash.com/photo-1486297678162-eb2a19b0a32d?w=300&h=200&fit=crop',
-        basePrice: 890,
-        categoryId: 'appetizers',
-        isVegetarian: true,
-        cookingTime: 5,
-        calories: 420,
-        allergens: ['молоко', 'орехи'],
-        ingredients: ['сыр пармезан', 'сыр горгонзола', 'сыр камамбер', 'мед', 'грецкие орехи'],
-        recommendations: 'Отлично сочетается с красным вином',
-        isAvailable: true,
-        portionWeight: 180
-      },
-      {
-        id: 'foie-gras',
-        name: 'Фуа-гра с брусничным соусом',
-        description: 'Изысканная фуа-гра с домашним брусничным соусом и тостами',
-        image: 'https://images.unsplash.com/photo-1414235077428-338989a2e8c0?w=300&h=200&fit=crop',
-        basePrice: 2800,
-        categoryId: 'appetizers',
-        cookingTime: 8,
-        calories: 680,
-        allergens: ['глютен'],
-        ingredients: ['фуа-гра', 'брусничный соус', 'тосты', 'микрозелень'],
-        recommendations: 'Премиальная позиция. Подавать с шампанским или белым вином',
-        isAvailable: false,
-        portionWeight: 120
-      }
-    ]
-  },
-  {
-    id: 'salads',
-    name: 'Салаты',
-    icon: 'bi-flower1',
-    color: '#27ae60',
-    items: [
-      {
-        id: 'caesar',
-        name: 'Цезарь',
-        description: 'Классический салат с курицей, сухариками и соусом цезарь',
-        image: 'https://images.unsplash.com/photo-1546793665-c74683f339c1?w=300&h=200&fit=crop',
-        basePrice: 650,
-        categoryId: 'salads',
-        isPopular: true,
-        cookingTime: 8,
-        calories: 380,
-        allergens: ['яйца', 'молоко', 'глютен'],
-        ingredients: ['салат айсберг', 'куриная грудка', 'пармезан', 'сухарики', 'соус цезарь'],
-        recommendations: 'Рекомендуем с белым вином или безалкогольным мохито',
-        isAvailable: true,
-        portionWeight: 220,
-        variations: [
-          {
-            id: 'size',
-            name: 'Размер',
-            required: true,
-            options: [
-              { id: 'small', name: 'Маленький', price: 550, portionWeight: 180, calories: 320, cookingTime: 7 },
-              { id: 'regular', name: 'Обычный', price: 650, portionWeight: 220, calories: 380, cookingTime: 8 },
-              { id: 'large', name: 'Большой', price: 750, portionWeight: 280, calories: 450, cookingTime: 9 }
-            ]
-          }
-        ]
-      }
-    ]
-  },
-  {
-    id: 'soups',
-    name: 'Супы',
-    icon: 'bi-cup-hot',
-    color: '#f39c12',
-    items: [
-      {
-        id: 'tomato-soup',
-        name: 'Томатный крем-суп',
-        description: 'Нежный крем-суп из спелых томатов с базиликом',
-        image: 'https://images.unsplash.com/photo-1547592166-23ac45744acd?w=300&h=200&fit=crop',
-        basePrice: 380,
-        categoryId: 'soups',
-        isVegetarian: true,
-        isNew: true,
-        cookingTime: 6,
-        calories: 180,
-        allergens: ['молоко'],
-        ingredients: ['томаты', 'сливки', 'базилик', 'лук', 'чеснок'],
-        recommendations: 'Подавать с хрустящими гренками',
-        isAvailable: true,
-        portionWeight: 300
-      }
-    ]
-  },
-  {
-    id: 'mains',
-    name: 'Основные блюда',
-    icon: 'bi-egg-fry',
-    color: '#8e44ad',
-    items: [
-      {
-        id: 'steak',
-        name: 'Стейк Рибай',
-        description: 'Сочный стейк из мраморной говядины с гарниром',
-        image: 'https://images.unsplash.com/photo-1546833999-b9f581a1996d?w=300&h=200&fit=crop',
-        basePrice: 1890,
-        categoryId: 'mains',
-        isPopular: true,
-        cookingTime: 18,
-        calories: 650,
-        allergens: [],
-        ingredients: ['говядина рибай', 'специи', 'масло', 'тимьян'],
-        recommendations: 'Рекомендуем красное вино. При medium-rare сок будет розовым',
-        isAvailable: true,
-        portionWeight: 280,
-        variations: [
-          {
-            id: 'size',
-            name: 'Размер',
-            required: true,
-            options: [
-              { id: 'small', name: 'Порция 200г', price: 1490, portionWeight: 200, calories: 520, cookingTime: 16 },
-              { id: 'regular', name: 'Порция 280г', price: 1890, portionWeight: 280, calories: 650, cookingTime: 18 },
-              { id: 'large', name: 'Порция 350г', price: 2290, portionWeight: 350, calories: 780, cookingTime: 20 }
-            ]
-          }
-        ]
-      },
-      {
-        id: 'spicy-pasta',
-        name: 'Паста Арабьята',
-        description: 'Острая паста с томатным соусом, чили и базиликом',
-        image: 'https://images.unsplash.com/photo-1551183053-bf91a1d81141?w=300&h=200&fit=crop',
-        basePrice: 690,
-        categoryId: 'mains',
-        cookingTime: 12,
-        calories: 520,
-        allergens: ['глютен'],
-        ingredients: ['паста пенне', 'томаты', 'чили', 'чеснок', 'базилик', 'оливковое масло'],
-        recommendations: 'Острое блюдо! Предупредите гостей. Подавать с пармезаном',
-        isAvailable: true,
-        portionWeight: 350,
-        spicyLevel: 'hot'
-      }
-    ]
-  },
-  {
-    id: 'desserts',
-    name: 'Десерты',
-    icon: 'bi-cake2',
-    color: '#e91e63',
-    items: [
-      {
-        id: 'tiramisu',
-        name: 'Тирамису',
-        description: 'Классический итальянский десерт с кофе и маскарпоне',
-        image: 'https://images.unsplash.com/photo-1571877227200-a0d98ea607e9?w=300&h=200&fit=crop',
-        basePrice: 450,
-        categoryId: 'desserts',
-        isPopular: true,
-        cookingTime: 3,
-        calories: 320,
-        allergens: ['яйца', 'молоко', 'глютен'],
-        ingredients: ['маскарпоне', 'печенье савоярди', 'кофе эспрессо', 'какао'],
-        recommendations: 'Отлично сочетается с кофе или дижестивом',
-        isAvailable: true,
-        portionWeight: 150
-      }
-    ]
-  },
-  {
-    id: 'drinks',
-    name: 'Напитки',
-    icon: 'bi-cup-straw',
-    color: '#3498db',
-    items: [
-      {
-        id: 'espresso',
-        name: 'Эспрессо',
-        description: 'Классический итальянский кофе',
-        image: 'https://images.unsplash.com/photo-1511537190424-bbbab87ac5eb?w=300&h=200&fit=crop',
-        basePrice: 180,
-        categoryId: 'drinks',
-        cookingTime: 2,
-        calories: 5,
-        allergens: [],
-        ingredients: ['кофе арабика 100%'],
-        recommendations: 'Подавать с сахаром или лимонной цедрой',
-        isAvailable: true,
-        portionWeight: 30,
-        variations: [
-          {
-            id: 'size',
-            name: 'Размер',
-            required: true,
-            options: [
-              { id: 'single', name: 'Одинарный', price: 180, portionWeight: 30, calories: 5, cookingTime: 2 },
-              { id: 'double', name: 'Двойной', price: 280, portionWeight: 60, calories: 10, cookingTime: 3 }
-            ]
-          }
-        ]
-      }
-    ]
-  }
-])
+// Все данные загружаются из API, демо данные удалены
 
 // Функции преобразования данных API в UI формат
 const mapApiCategoryToUICategory = (apiCategory: import('@/types/api').Category): Category => {
@@ -705,7 +493,7 @@ const mapApiDishToUIDish = (apiDish: import('@/types/api').Dish, variations?: im
     id: apiDish.id.toString(),
     name: apiDish.name,
     description: apiDish.description,
-    image: apiDish.main_image_url || 'https://images.unsplash.com/photo-1546069901-ba9599a7e63c?w=300&h=200&fit=crop',
+    image: apiDish.main_image_url || '/placeholder-dish.jpg',
     basePrice: basePrice,
     categoryId: apiDish.category_id.toString(),
     isPopular: apiDish.is_popular,
@@ -739,12 +527,8 @@ const combinedCategories = computed(() => {
     return uiCategory
   })
 
-  // Если есть API категории, показываем их, иначе демо данные
-  if (apiCategoriesUI.length > 0) {
-    return apiCategoriesUI
-  } else {
-    return categories.value
-  }
+  // Возвращаем только API категории (демо данные удалены)
+  return apiCategoriesUI
 })
 
 const currentCategoryDishes = computed(() => {
@@ -1027,11 +811,6 @@ const formatVariations = (variations: Record<string, DishVariationOption>) => {
 
 const getCategoryCount = (category: Category) => {
   const categoryId = parseInt(category.id)
-
-  // Если это демо категория, возвращаем количество элементов
-  if (isNaN(categoryId)) {
-    return category.items.length.toString()
-  }
 
   // Если блюда загружаются для этой категории
   if (loadingDishesForCategories.value.has(categoryId)) {
