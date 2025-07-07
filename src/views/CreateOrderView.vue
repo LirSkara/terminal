@@ -219,189 +219,49 @@
       </div>
     </div>
 
-    <!-- Модальное окно выбора вариаций -->
-    <div v-if="showDishModal" class="dish-modal-overlay" @click="closeDishModal">
-      <div class="dish-modal" @click.stop>
-        <div class="modal-header" :style="{ backgroundImage: selectedDish?.image ? `url(${selectedDish.image})` : 'none' }">
-          <h3>{{ selectedDish?.name }}</h3>
-          <button @click="closeDishModal" class="modal-close-btn">
-            <i class="bi bi-x"></i>
-          </button>
-        </div>
+    <!-- Модальные окна -->
+    <DishModal
+      :show="showDishModal"
+      :selected-dish="selectedDish"
+      :selected-variations="selectedVariations"
+      :quantity="modalQuantity"
+      :total-price="calculateDishPrice() * modalQuantity"
+      @close="closeDishModal"
+      @select-variation="selectVariation"
+      @increase-quantity="modalQuantity++"
+      @decrease-quantity="modalQuantity > 1 && modalQuantity--"
+      @add-to-cart="addDishToCart"
+    />
 
-        <div class="modal-body">
-          <div class="dish-details">
-            <!-- Информация для официантов -->
-            <div class="info-grid" v-if="selectedDish">
-              <div class="info-item" v-if="currentDishInfo?.cookingTime">
-                <i class="bi bi-clock"></i>
-                <div>
-                  <span class="label">Готовится</span>
-                  <span class="value">{{ currentDishInfo.cookingTime }} мин</span>
-                </div>
-              </div>
+    <OrderTypeModal
+      :show="showOrderTypeModal"
+      :order-types="orderTypes"
+      :selected-order-type="selectedOrderType"
+      :is-loading-zones="isLoadingZones"
+      :is-loading-tables="isLoadingTables"
+      :available-zones="availableZones"
+      :active-zone="activeZone"
+      :tables-by-zones="tablesByZones"
+      :zones="zones"
+      @close="closeOrderTypeModal"
+      @select-order-type="selectOrderType"
+      @select-zone="selectZone"
+      @select-table="selectTable"
+    />
 
-              <div class="info-item" v-if="currentDishInfo?.portionWeight">
-                <i class="bi bi-speedometer2"></i>
-                <div>
-                  <span class="label">Вес порции</span>
-                  <span class="value">{{ currentDishInfo.portionWeight }} г</span>
-                </div>
-              </div>
-
-              <div class="info-item" v-if="currentDishInfo?.calories">
-                <i class="bi bi-lightning"></i>
-                <div>
-                  <span class="label">Калорийность</span>
-                  <span class="value">{{ currentDishInfo.calories }} ккал</span>
-                </div>
-              </div>
-
-              <div class="info-item allergens-alert" v-if="selectedDish.allergens && selectedDish.allergens.length > 0">
-                <i class="bi bi-exclamation-triangle-fill"></i>
-                <div>
-                  <span class="label">Аллергены</span>
-                  <span class="value">{{ selectedDish.allergens.join(', ') }}</span>
-                </div>
-              </div>
-            </div>
-
-            <!-- Вариации -->
-            <div v-if="selectedDish?.variations" class="variations-section">
-              <div
-                v-for="variation in selectedDish.variations"
-                :key="variation.id"
-                class="variation-group"
-              >
-                <div class="variation-options">
-                  <button
-                    v-for="option in variation.options"
-                    :key="option.id"
-                    @click="selectVariation(variation.id, option)"
-                    :class="['variation-option', {
-                      active: selectedVariations[variation.id]?.id === option.id
-                    }]"
-                  >
-                    <div class="option-main">
-                      <span class="option-name">{{ option.name }}</span>
-                      <span class="option-price">{{ option.price }}₽</span>
-                    </div>
-                  </button>
-                </div>
-              </div>
-            </div>
-
-            <!-- Итоговая цена -->
-            <!-- Убрано, так как цена показывается в кнопке -->
-          </div>
-        </div>
-
-        <div class="modal-footer">
-          <div class="modal-quantity">
-            <button @click="modalQuantity > 1 && modalQuantity--" class="qty-btn">
-              <i class="bi bi-dash"></i>
-            </button>
-            <span class="quantity">{{ modalQuantity }}</span>
-            <button @click="modalQuantity++" class="qty-btn">
-              <i class="bi bi-plus"></i>
-            </button>
-          </div>
-
-          <button @click="addDishToCart" class="add-to-cart-btn">
-            <i class="bi bi-cart-plus"></i>
-            Добавить ({{ calculateDishPrice() * modalQuantity }}₽)
-          </button>
-        </div>
-      </div>
-    </div>
-
-    <!-- Модальное окно выбора типа заказа -->
-    <div v-if="showOrderTypeModal" class="dish-modal-overlay" @click="closeOrderTypeModal">
-      <div class="order-type-modal" @click.stop>
-        <div class="modal-header">
-          <h3>Выберите тип заказа</h3>
-          <button @click="closeOrderTypeModal" class="modal-close-btn">
-            <i class="bi bi-x"></i>
-          </button>
-        </div>
-
-        <div class="modal-body">
-          <!-- Типы заказов -->
-          <div class="order-types-section">
-            <div class="order-types-grid">
-              <button
-                v-for="orderType in orderTypes"
-                :key="orderType.id"
-                @click="selectOrderType(orderType.id)"
-                class="order-type-card"
-                :class="`order-type-${orderType.id}`"
-              >
-                <div class="order-type-icon">
-                  <i :class="orderType.icon"></i>
-                </div>
-                <h4>{{ orderType.name }}</h4>
-                <p>{{ orderType.description }}</p>
-              </button>
-            </div>
-          </div>
-
-          <!-- Выбор столика (показывается только если выбран тип "За столиком") -->
-          <div v-if="selectedOrderType === 'table'" class="tables-section">
-            <h4>Выберите столик:</h4>
-
-            <!-- Индикатор загрузки зон -->
-            <div v-if="isLoadingZones || isLoadingTables" class="loading-indicator">
-              <i class="bi bi-arrow-clockwise spin"></i>
-              <span>Загрузка данных...</span>
-            </div>
-
-            <!-- Вкладки зон -->
-            <div v-else-if="availableZones.length > 0" class="zone-tabs">
-              <button
-                v-for="zoneName in availableZones"
-                :key="zoneName"
-                @click="selectZone(zoneName)"
-                :class="['zone-tab', { active: activeZone === zoneName }]"
-                :style="{ '--zone-color': getZoneColor(zoneName) }"
-              >
-                <span
-                  class="zone-tab-badge"
-                  :style="{ backgroundColor: getZoneColor(zoneName) }"
-                >
-                  {{ zoneName }}
-                </span>
-                <span class="zone-count">{{ tablesByZones[zoneName]?.length || 0 }}</span>
-              </button>
-            </div>
-
-            <!-- Сообщение об отсутствии зон -->
-            <div v-else class="no-zones-message">
-              <p>Зоны не найдены</p>
-            </div>
-
-            <!-- Столики активной зоны -->
-            <div v-if="activeZone" class="zone-content">
-              <div class="tables-grid">
-                <button
-                  v-for="table in activeZoneTables"
-                  :key="table.id"
-                  @click="selectTable(table.id)"
-                  class="table-card"
-                >
-                  <div class="table-info">
-                    <h5>{{ table.name }}</h5>
-                    <span class="table-capacity">
-                      <i class="bi bi-people"></i>
-                      {{ table.capacity }} мест
-                    </span>
-                  </div>
-                </button>
-              </div>
-            </div>
-          </div>
-        </div>
-      </div>
-    </div>
+    <OrderConfirmModal
+      :show="showOrderConfirmModal"
+      :order-summary-text="orderConfirmData.orderSummaryText"
+      :items-count="orderConfirmData.itemsCount"
+      :payment-method-name="orderConfirmData.paymentMethodName"
+      :total-price="orderConfirmData.totalPrice"
+      :order-type="selectedOrderType || ''"
+      :is-delivery="selectedOrderType === 'delivery'"
+      @close="closeOrderConfirmModal"
+      @go-to-dashboard="goToDashboard"
+      @create-another-order="createAnotherOrder"
+      @confirm-order="handleDeliveryOrderConfirm"
+    />
   </div>
 </template>
 
@@ -413,6 +273,9 @@ import { useNotificationStore } from '@/stores/notifications'
 import { apiService } from '@/services/api'
 import { cacheService } from '@/services/cache'
 import type { Location, Dish as ApiDish, DishVariation as ApiDishVariation } from '@/types/api'
+import DishModal from '@/components/modals/DishModal.vue'
+import OrderTypeModal from '@/components/modals/OrderTypeModal.vue'
+import OrderConfirmModal from '@/components/modals/OrderConfirmModal.vue'
 
 // Типы
 interface DishVariationOption {
@@ -530,10 +393,19 @@ const dishVariations = ref<Record<number, import('@/types/api').DishVariation[]>
 // Модальные окна
 const showDishModal = ref(false)
 const showOrderTypeModal = ref(false)
+const showOrderConfirmModal = ref(false)
 const selectedDish = ref<Dish | null>(null)
 const selectedVariations = ref<Record<string, DishVariationOption>>({})
 const modalQuantity = ref(1)
 const activeZone = ref<string | null>(null)
+
+// Данные для модального окна подтверждения
+const orderConfirmData = ref({
+  orderSummaryText: '',
+  itemsCount: 0,
+  paymentMethodName: '',
+  totalPrice: 0
+})
 
 // Типы заказов
 const orderTypes = ref<OrderType[]>([
@@ -901,44 +773,6 @@ const availableZones = computed(() => {
   return Object.keys(tablesByZones.value)
 })
 
-// Столики активной зоны
-const activeZoneTables = computed(() => {
-  if (!activeZone.value || !tablesByZones.value[activeZone.value]) {
-    return []
-  }
-  return tablesByZones.value[activeZone.value]
-})
-
-// Цвета для зон (используем данные из API)
-const getZoneColor = (zoneName: string) => {
-  const zone = zones.value.find(z => z.name === zoneName)
-  return zone?.color || '#6c757d'
-}
-
-// Динамические значения для модального окна на основе выбранных вариаций
-const currentDishInfo = computed(() => {
-  if (!selectedDish.value) return null
-
-  let cookingTime = selectedDish.value.cookingTime
-  let calories = selectedDish.value.calories
-  let portionWeight = selectedDish.value.portionWeight
-
-  // Если есть выбранные вариации, используем их значения
-  const selectedOptions = Object.values(selectedVariations.value)
-  if (selectedOptions.length > 0) {
-    const firstOption = selectedOptions[0]
-    cookingTime = firstOption.cookingTime ?? cookingTime
-    calories = firstOption.calories ?? calories
-    portionWeight = firstOption.portionWeight ?? portionWeight
-  }
-
-  return {
-    cookingTime,
-    calories,
-    portionWeight
-  }
-})
-
 // Методы
 const updateTime = () => {
   const now = new Date()
@@ -1028,6 +862,55 @@ const closeDishModal = () => {
   selectedDish.value = null
   selectedVariations.value = {}
   modalQuantity.value = 1
+}
+
+// Функции для модального окна подтверждения заказа
+const closeOrderConfirmModal = () => {
+  showOrderConfirmModal.value = false
+}
+
+const goToDashboard = () => {
+  showOrderConfirmModal.value = false
+  router.push({ name: 'dashboard' })
+}
+
+const createAnotherOrder = () => {
+  showOrderConfirmModal.value = false
+  // Очищаем корзину и данные заказа
+  cartItems.value = []
+  selectedOrderType.value = null
+  selectedTable.value = null
+  selectedPaymentMethod.value = null
+
+  // Показываем модальное окно выбора типа заказа для нового заказа
+  openOrderTypeModal()
+}
+
+const handleDeliveryOrderConfirm = (deliveryData?: { customerName: string; phone: string; address: string; comment?: string }) => {
+  console.log('Подтверждение заказа доставки:', {
+    orderType: selectedOrderType.value,
+    items: cartItems.value,
+    paymentMethod: selectedPaymentMethod.value,
+    total: totalPrice.value,
+    deliveryData
+  })
+
+  // Здесь будет логика отправки заказа на сервер с данными доставки
+
+  // Показываем уведомление об успешном создании заказа
+  notificationStore.addNotification({
+    type: 'success',
+    title: 'Заказ создан',
+    message: deliveryData
+      ? `Заказ доставки на адрес: ${deliveryData.address}`
+      : 'Заказ успешно создан',
+    read: false,
+    sound: false
+  })
+
+  // Переходим на главную страницу
+  showOrderConfirmModal.value = false
+  router.push({ name: 'dashboard' })
 }
 
 const selectVariation = (variationId: string, option: DishVariationOption) => {
@@ -1215,15 +1098,23 @@ const createOrder = () => {
   let orderTypeText = ''
   if (selectedOrderType.value === 'table') {
     const table = availableTables.value.find(t => t.id === selectedTable.value)
-    orderTypeText = table ? `${table.name}` : `Столик ${selectedTable.value}`
+    orderTypeText = table ? `${table.zone} - ${table.name}` : `Столик ${selectedTable.value}`
   } else if (selectedOrderType.value === 'takeaway') {
-    orderTypeText = 'с собой'
+    orderTypeText = 'С собой'
   } else if (selectedOrderType.value === 'delivery') {
-    orderTypeText = 'доставка'
+    orderTypeText = 'Доставка'
   }
 
-  alert(`Заказ ${orderTypeText} создан! Сумма: ${totalPrice.value}₽`)
-  router.push({ name: 'dashboard' })
+  // Заполняем данные для модального окна подтверждения
+  orderConfirmData.value = {
+    orderSummaryText: orderTypeText,
+    itemsCount: cartItems.value.length,
+    paymentMethodName: selectedPaymentMethod.value || 'Не выбрано',
+    totalPrice: totalPrice.value
+  }
+
+  // Показываем модальное окно подтверждения
+  showOrderConfirmModal.value = true
 }
 
 // Функция для проверки актуальности кэша
