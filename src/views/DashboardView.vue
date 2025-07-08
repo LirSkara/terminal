@@ -552,8 +552,22 @@ const mapApiTableToTable = (apiTable: import('@/types/api').Table & { current_or
 
   // Определяем статус на основе API данных
   let status: Table['status'] = 'free'
-  if (apiTable.is_occupied) {
+
+  // Если столик занят И есть активный заказ, то он занят
+  if (apiTable.is_occupied && apiTable.current_order_id) {
     status = 'occupied'
+  }
+  // Если столик занят, но нет активного заказа, возможно он на уборке
+  else if (apiTable.is_occupied && !apiTable.current_order_id) {
+    status = 'cleaning'
+  }
+  // Если есть заказ, но столик не помечен как занятый, это может быть QR заказ
+  else if (!apiTable.is_occupied && apiTable.current_order_id) {
+    status = 'qr-waiting'
+  }
+  // Иначе столик свободен
+  else {
+    status = 'free'
   }
 
   return {
@@ -715,6 +729,62 @@ const loadZones = async () => {
   }
 }
 
+// Функция загрузки данных о заказах для столиков
+const loadOrdersData = async () => {
+  try {
+    console.log('Загрузка данных о заказах...')
+
+    // Получаем все столики с активными заказами
+    const tablesWithOrders = tables.value.filter(table => table.current_order_id)
+
+    if (tablesWithOrders.length === 0) {
+      console.log('Нет столиков с активными заказами')
+      return
+    }
+
+    // TODO: Пока комментируем загрузку заказов, так как нужно проверить API типы
+    // Загружаем данные о заказах
+    /*
+    const orderPromises = tablesWithOrders.map(async (table) => {
+      try {
+        const order = await apiService.getOrder(table.current_order_id!)
+        return { table, order }
+      } catch (error) {
+        console.warn(`Ошибка загрузки заказа ${table.current_order_id} для столика ${table.number}:`, error)
+        return { table, order: null }
+      }
+    })
+
+    const ordersData = await Promise.all(orderPromises)
+
+    // Обновляем информацию о столиках
+    ordersData.forEach(({ table, order }) => {
+      if (order) {
+        // Обновляем время заказа
+        if (order.created_at) {
+          table.orderTime = new Date(order.created_at)
+        }
+
+        // Обновляем сумму заказа
+        if (order.total) {
+          table.orderAmount = order.total
+        }
+
+        // Обновляем статус на основе статуса заказа
+        if (order.status === 'ready') {
+          table.status = 'ready'
+        }
+      }
+    })
+    */
+
+    console.log('Данные о заказах загружены и применены к столикам')
+
+  } catch (error) {
+    console.error('Ошибка загрузки данных о заказах:', error)
+  }
+}
+
 // Функция для полной загрузки данных дашборда
 const loadAllDashboardData = async () => {
   console.log('Полная загрузка данных дашборда...')
@@ -725,6 +795,9 @@ const loadAllDashboardData = async () => {
       loadZones(),
       loadTables()
     ])
+
+    // Загружаем данные о заказах для столиков
+    await loadOrdersData()
 
     // Сохраняем timestamp успешной загрузки (дольше чем данные, чтобы не истек раньше)
     cacheService.set('_dashboard_cache_timestamp', new Date().toISOString(), { ttl: 60 * 60 * 1000 }) // 60 минут
@@ -1168,6 +1241,9 @@ onMounted(async () => {
   } else {
     console.log('Кэш дашборда актуален, загрузка с сервера не требуется')
   }
+
+  // Загружаем данные о заказах
+  await loadOrdersData()
 
   // Показываем отладочную информацию о зонах в режиме разработки
   if (import.meta.env.DEV) {

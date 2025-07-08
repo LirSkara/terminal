@@ -158,29 +158,28 @@ export interface Order {
 // === СТАТУСЫ ===
 
 export type OrderStatus =
-  | 'pending'      // Ожидает подтверждения
-  | 'confirmed'    // Подтвержден кухней
-  | 'in_progress'  // Готовится
-  | 'ready'        // Готов к подаче
-  | 'served'       // Подан клиенту
+  | 'pending'      // Ожидает
+  | 'in_progress'  // В процессе
+  | 'ready'        // Готов
+  | 'served'       // Подан
   | 'cancelled'    // Отменен
 
 export type PaymentStatus =
   | 'unpaid'       // Не оплачен
   | 'paid'         // Оплачен
-  | 'partial'      // Частично оплачен
+  | 'refunded'     // Возвращен
 
 export type OrderType =
   | 'dine_in'      // В зале
   | 'takeaway'     // На вынос
+  | 'delivery'     // Доставка
 
 export type OrderItemStatus =
-  | 'pending'
-  | 'confirmed'
-  | 'in_progress'
-  | 'ready'
-  | 'served'
-  | 'cancelled'
+  | 'new'          // Новая
+  | 'cooking'      // Готовится
+  | 'ready'        // Готова
+  | 'served'       // Подана
+  | 'cancelled'    // Отменена
 
 export type TableStatus =
   | 'free'         // Свободный
@@ -244,13 +243,14 @@ export interface ItemStatusChangedEvent extends WebSocketMessage<{
 export interface CreateOrderRequest {
   table_id: number
   order_type: OrderType
-  items: CreateOrderItemRequest[]
   notes?: string
+  kitchen_notes?: string
+  items: CreateOrderItemRequest[]
 }
 
 export interface CreateOrderItemRequest {
   dish_id: number
-  dish_variation_id: number
+  dish_variation_id?: number  // Сделаем опциональным согласно документации
   quantity: number
   comment?: string
 }
@@ -314,23 +314,23 @@ export interface ValidationErrorResponse {
 // === КОНСТАНТЫ ===
 
 export const ORDER_STATUSES: Record<OrderStatus, string> = {
-  pending: 'Ожидает подтверждения',
-  confirmed: 'Подтвержден кухней',
-  in_progress: 'Готовится',
-  ready: 'Готов к подаче',
-  served: 'Подан клиенту',
+  pending: 'Ожидает',
+  in_progress: 'В процессе',
+  ready: 'Готов',
+  served: 'Подан',
   cancelled: 'Отменен'
 }
 
 export const PAYMENT_STATUSES: Record<PaymentStatus, string> = {
   unpaid: 'Не оплачен',
   paid: 'Оплачен',
-  partial: 'Частично оплачен'
+  refunded: 'Возвращен'
 }
 
 export const ORDER_TYPES: Record<OrderType, string> = {
   dine_in: 'В зале',
-  takeaway: 'На вынос'
+  takeaway: 'На вынос',
+  delivery: 'Доставка'
 }
 
 export const TABLE_STATUSES: Record<TableStatus, { label: string; color: string }> = {
@@ -598,3 +598,54 @@ export interface UpdatePaymentMethodRequest {
 }
 
 // === ОБНОВЛЕННЫЕ ИНТЕРФЕЙСЫ ===
+
+// Подробная информация о заказе с позициями из API
+export interface OrderWithDetails {
+  // Основная информация заказа
+  id: number
+  table_id: number
+  waiter_id: number
+  order_type: OrderType
+  notes?: string
+  kitchen_notes?: string
+
+  // Статусы и цены
+  status: OrderStatus
+  payment_status: PaymentStatus
+  total_price: string        // Decimal в виде строки
+
+  // Временные метки
+  created_at: string         // ISO datetime
+  updated_at: string         // ISO datetime
+  served_at?: string         // ISO datetime (если заказ подан)
+  cancelled_at?: string      // ISO datetime (если отменен)
+  time_to_serve?: number     // Время подачи в минутах
+
+  // Дополнительная информация
+  table_number: number       // Номер столика
+  waiter_name: string        // Полное имя официанта
+
+  // Позиции заказа с деталями
+  items: OrderItemWithDish[]
+}
+
+// Позиция заказа с информацией о блюде
+export interface OrderItemWithDish {
+  // Основная информация позиции
+  id: number
+  order_id: number
+  dish_id: number
+  dish_variation_id?: number
+  quantity: number
+  price: string              // Цена за единицу (Decimal)
+  total: string              // Общая стоимость (Decimal)
+  comment?: string
+  status: OrderItemStatus
+  created_at: string         // ISO datetime
+  updated_at: string         // ISO datetime
+
+  // Информация о блюде
+  dish_name: string          // Название блюда
+  dish_image_url?: string    // URL изображения блюда
+  dish_cooking_time?: number // Время приготовления в минутах
+}

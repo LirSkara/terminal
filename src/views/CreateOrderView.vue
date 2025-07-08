@@ -670,7 +670,7 @@ const createAnotherOrder = () => {
   openOrderTypeModal()
 }
 
-const handleDeliveryOrderConfirm = (deliveryData?: { customerName: string; phone: string; address: string; comment?: string }) => {
+const handleDeliveryOrderConfirm = async (deliveryData?: { customerName: string; phone: string; address: string; comment?: string }) => {
   console.log('Подтверждение заказа доставки:', {
     orderType: selectedOrderType.value,
     items: cartItems.value,
@@ -679,22 +679,117 @@ const handleDeliveryOrderConfirm = (deliveryData?: { customerName: string; phone
     deliveryData
   })
 
-  // Здесь будет логика отправки заказа на сервер с данными доставки
+  try {
+    // Проверяем, что есть данные для создания заказа
+    if (!selectedOrderType.value || cartItems.value.length === 0) {
+      throw new Error('Недостаточно данных для создания заказа')
+    }
 
-  // Показываем уведомление об успешном создании заказа
-  notificationStore.addNotification({
-    type: 'success',
-    title: 'Заказ создан',
-    message: deliveryData
-      ? `Заказ доставки на адрес: ${deliveryData.address}`
-      : 'Заказ успешно создан',
-    read: false,
-    sound: false
-  })
+    // Преобразуем UI тип заказа в API формат
+    let apiOrderType: import('@/types/api').OrderType
+    if (selectedOrderType.value === 'table') {
+      apiOrderType = 'dine_in'
+    } else if (selectedOrderType.value === 'takeaway') {
+      apiOrderType = 'takeaway'
+    } else if (selectedOrderType.value === 'delivery') {
+      apiOrderType = 'delivery'
+    } else {
+      throw new Error('Неверный тип заказа')
+    }
 
-  // Переходим на главную страницу
-  showOrderConfirmModal.value = false
-  router.push({ name: 'dashboard' })
+    // Определяем ID столика (для доставки используем специальный столик)
+    let tableId: number
+    if (selectedOrderType.value === 'table' && selectedTable.value) {
+      tableId = parseInt(selectedTable.value)
+    } else {
+      // Для доставки и заказов на вынос используем специальный столик ID 1
+      tableId = 1
+    }
+
+    // Формируем заметки с данными доставки
+    let notes = ''
+    let kitchen_notes = ''
+
+    if (deliveryData) {
+      notes = `Доставка - ${deliveryData.customerName}, тел: ${deliveryData.phone}, адрес: ${deliveryData.address}`
+      if (deliveryData.comment) {
+        kitchen_notes = deliveryData.comment
+      }
+    }
+
+    // Формируем данные заказа для API
+    const orderData: import('@/types/api').CreateOrderRequest = {
+      table_id: tableId,
+      order_type: apiOrderType,
+      notes: notes,
+      kitchen_notes: kitchen_notes,
+      items: cartItems.value.map(item => {
+        const apiItem: import('@/types/api').CreateOrderItemRequest = {
+          dish_id: parseInt(item.dishId),
+          quantity: item.quantity,
+          comment: item.selectedVariations ? formatVariations(item.selectedVariations) : undefined
+        }
+
+        // Добавляем ID вариации если выбрана
+        if (item.selectedVariations && Object.keys(item.selectedVariations).length > 0) {
+          const firstVariation = Object.values(item.selectedVariations)[0]
+          if (firstVariation && firstVariation.id) {
+            apiItem.dish_variation_id = parseInt(firstVariation.id)
+          }
+        }
+
+        return apiItem
+      })
+    }
+
+    console.log('Отправляем заказ доставки на сервер:', orderData)
+
+    // Отправляем заказ на сервер
+    const createdOrder = await apiService.createOrder(orderData)
+
+    console.log('Заказ доставки успешно создан:', createdOrder)
+
+    // Показываем уведомление об успешном создании заказа
+    notificationStore.addNotification({
+      type: 'success',
+      title: 'Заказ создан',
+      message: deliveryData
+        ? `Заказ доставки #${createdOrder.id} на адрес: ${deliveryData.address}`
+        : `Заказ #${createdOrder.id} успешно создан`,
+      read: false,
+      sound: true
+    })
+
+    // Очищаем корзину и данные заказа
+    cartItems.value = []
+    selectedOrderType.value = null
+    selectedTable.value = null
+    selectedPaymentMethod.value = null
+
+    // Переходим на главную страницу
+    showOrderConfirmModal.value = false
+    router.push({ name: 'dashboard' })
+
+  } catch (error) {
+    console.error('Ошибка создания заказа доставки:', error)
+
+    let errorMessage = 'Не удалось создать заказ доставки'
+
+    if (error && typeof error === 'object' && 'response' in error) {
+      const axiosError = error as { response: { status: number; data?: { detail?: string } } }
+      errorMessage = axiosError.response.data?.detail || `Ошибка сервера: ${axiosError.response.status}`
+    } else if (error instanceof Error) {
+      errorMessage = error.message
+    }
+
+    notificationStore.addNotification({
+      type: 'error',
+      title: 'Ошибка создания заказа',
+      message: errorMessage,
+      read: false,
+      sound: true
+    })
+  }
 }
 
 const selectVariation = (variationId: string, option: DishVariationOption) => {
@@ -849,7 +944,7 @@ const formatDishPrice = (dish: Dish) => {
   return dish.basePrice.toString()
 }
 
-const createOrder = () => {
+const createOrder = async () => {
   if (!selectedPaymentMethod.value || cartItems.value.length === 0) return
 
   // Проверяем, что выбран тип заказа
@@ -864,36 +959,167 @@ const createOrder = () => {
     return
   }
 
-  console.log('Создание заказа:', {
-    orderType: selectedOrderType.value,
-    table: selectedTable.value,
-    items: cartItems.value,
-    paymentMethod: selectedPaymentMethod.value,
-    total: totalPrice.value
-  })
+  try {
+    // Показываем индикатор загрузки
+    notificationStore.addNotification({
+      type: 'info',
+      title: 'Создание заказа',
+      message: 'Отправляем заказ на сервер...',
+      read: false,
+      sound: false
+    })
 
-  // Здесь будет логика создания заказа через API
-  // После успешного создания вернемся на главную
-  let orderTypeText = ''
-  if (selectedOrderType.value === 'table') {
-    const table = availableTables.value.find(t => t.id === selectedTable.value)
-    orderTypeText = table ? `${table.zone} - ${table.name}` : `Столик ${selectedTable.value}`
-  } else if (selectedOrderType.value === 'takeaway') {
-    orderTypeText = 'С собой'
-  } else if (selectedOrderType.value === 'delivery') {
-    orderTypeText = 'Доставка'
+    // Преобразуем UI тип заказа в API формат
+    let apiOrderType: import('@/types/api').OrderType
+    if (selectedOrderType.value === 'table') {
+      apiOrderType = 'dine_in'
+    } else if (selectedOrderType.value === 'takeaway') {
+      apiOrderType = 'takeaway'
+    } else if (selectedOrderType.value === 'delivery') {
+      apiOrderType = 'delivery'
+    } else {
+      throw new Error('Неверный тип заказа')
+    }
+
+    // Определяем ID столика
+    let tableId: number
+    if (selectedOrderType.value === 'table' && selectedTable.value) {
+      // Для заказа за столиком используем ID выбранного столика
+      tableId = parseInt(selectedTable.value)
+    } else {
+      // Для заказов на вынос и доставку нужно найти специальный столик или обойтись без него
+      // По документации table_id обязательный, но для takeaway/delivery может потребоваться другая логика
+      notificationStore.addNotification({
+        type: 'error',
+        title: 'Ошибка конфигурации',
+        message: 'Для заказов на вынос и доставку требуется настройка специальных столиков в системе',
+        read: false,
+        sound: true
+      })
+      return
+    }
+
+    console.log('Формируем данные заказа:')
+    console.log('- Тип заказа UI:', selectedOrderType.value)
+    console.log('- Тип заказа API:', apiOrderType)
+    console.log('- ID столика:', tableId)
+    console.log('- Товары в корзине:', cartItems.value)
+
+    // Формируем данные заказа для API
+    const orderData: import('@/types/api').CreateOrderRequest = {
+      table_id: tableId,
+      order_type: apiOrderType,
+      notes: '', // Можно добавить поле для заметок в UI
+      kitchen_notes: '', // Можно добавить поле для заметок кухне в UI
+      items: cartItems.value.map(item => {
+        console.log('Обрабатываем товар:', item)
+
+        const apiItem: import('@/types/api').CreateOrderItemRequest = {
+          dish_id: parseInt(item.dishId),
+          quantity: item.quantity,
+          comment: item.selectedVariations ? formatVariations(item.selectedVariations) : undefined
+        }
+
+        // Добавляем ID вариации если выбрана
+        if (item.selectedVariations && Object.keys(item.selectedVariations).length > 0) {
+          const firstVariation = Object.values(item.selectedVariations)[0]
+          if (firstVariation && firstVariation.id) {
+            apiItem.dish_variation_id = parseInt(firstVariation.id)
+            console.log('Добавлена вариация:', firstVariation.id, firstVariation.name)
+          }
+        }
+
+        console.log('API товар:', apiItem)
+        return apiItem
+      })
+    }
+
+    console.log('Отправляем заказ на сервер:', orderData)
+
+    // Отправляем заказ на сервер
+    const createdOrder = await apiService.createOrder(orderData)
+
+    console.log('Заказ успешно создан:', createdOrder)
+
+    // Показываем уведомление об успехе
+    notificationStore.addNotification({
+      type: 'success',
+      title: 'Заказ создан',
+      message: `Заказ #${createdOrder.id} успешно создан`,
+      read: false,
+      sound: true
+    })
+
+    // Заполняем данные для модального окна подтверждения
+    let orderTypeText = ''
+    if (selectedOrderType.value === 'table') {
+      const table = availableTables.value.find(t => t.id === selectedTable.value)
+      orderTypeText = table ? `${table.zone} - ${table.name}` : `Столик ${selectedTable.value}`
+    } else if (selectedOrderType.value === 'takeaway') {
+      orderTypeText = 'С собой'
+    } else if (selectedOrderType.value === 'delivery') {
+      orderTypeText = 'Доставка'
+    }
+
+    orderConfirmData.value = {
+      orderSummaryText: orderTypeText,
+      itemsCount: cartItems.value.length,
+      paymentMethodName: getPaymentMethodName(selectedPaymentMethod.value),
+      totalPrice: parseFloat(createdOrder.total_price) // Конвертируем строку в число
+    }
+
+    // Показываем модальное окно подтверждения
+    showOrderConfirmModal.value = true
+
+  } catch (error) {
+    console.error('Ошибка создания заказа:', error)
+
+    let errorMessage = 'Не удалось создать заказ'
+
+    if (error && typeof error === 'object' && 'response' in error) {
+      const axiosError = error as { response: { status: number; data?: unknown } }
+
+      console.log('Детали ошибки от сервера:', axiosError.response.data)
+
+      if (axiosError.response.status === 400) {
+        errorMessage = 'Ошибка валидации данных заказа'
+
+        // Пытаемся извлечь детали ошибки
+        const data = axiosError.response.data as Record<string, unknown>
+        if (data && typeof data === 'object') {
+          if (data.detail) {
+            errorMessage += `: ${data.detail}`
+          } else if (data.message) {
+            errorMessage += `: ${data.message}`
+          }
+        }
+      } else if (axiosError.response.status === 404) {
+        errorMessage = 'Столик или блюдо не найдены'
+      } else if (axiosError.response.status === 403) {
+        errorMessage = 'Недостаточно прав для создания заказа'
+      } else {
+        errorMessage = `Ошибка сервера: ${axiosError.response.status}`
+      }
+    } else if (error instanceof Error) {
+      errorMessage = error.message
+    }
+
+    notificationStore.addNotification({
+      type: 'error',
+      title: 'Ошибка создания заказа',
+      message: errorMessage,
+      read: false,
+      sound: true
+    })
   }
+}
 
-  // Заполняем данные для модального окна подтверждения
-  orderConfirmData.value = {
-    orderSummaryText: orderTypeText,
-    itemsCount: cartItems.value.length,
-    paymentMethodName: selectedPaymentMethod.value || 'Не выбрано',
-    totalPrice: totalPrice.value
-  }
+// Вспомогательная функция для получения названия способа оплаты
+const getPaymentMethodName = (methodId: string | null): string => {
+  if (!methodId) return 'Не выбрано'
 
-  // Показываем модальное окно подтверждения
-  showOrderConfirmModal.value = true
+  const method = paymentMethods.value.find(m => m.id === methodId)
+  return method?.name || methodId
 }
 
 // Функция для проверки актуальности кэша

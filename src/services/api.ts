@@ -5,6 +5,7 @@ import type {
   User,
   Table,
   Order,
+  OrderWithDetails,
   CreateOrderRequest,
   Dish,
   Category,
@@ -325,8 +326,8 @@ class ApiService {
     return response.data
   }
 
-  async createOrder(orderData: CreateOrderRequest): Promise<Order> {
-    const response = await this.api.post<Order>('/orders/', orderData)
+  async createOrder(orderData: CreateOrderRequest): Promise<OrderWithDetails> {
+    const response = await this.api.post<OrderWithDetails>('/orders/', orderData)
     return response.data
   }
 
