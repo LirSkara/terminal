@@ -160,6 +160,9 @@
 
               <!-- Информация о столике -->
               <div class="dashboard-table-info">
+                <div class="dashboard-zone-name">
+                  {{ getZoneName(table.zone) }}
+                </div>
                 <div class="dashboard-seats-count">
                   <i class="bi bi-people-fill"></i>
                   {{ table.seats }} мест
@@ -364,7 +367,7 @@ import { useNotificationStore } from '@/stores/notifications'
 import { useRouter } from 'vue-router'
 import { apiService } from '@/services/api'
 import { cacheService } from '@/services/cache'
-import type { Location } from '@/types/api'
+import type { Location, Order as ApiOrder, OrderItem as ApiOrderItem } from '@/types/api'
 
 // Типы
 interface Table {
@@ -448,47 +451,53 @@ const zones = ref<Zone[]>([
 // Столики ресторана (загружаются из API)
 const tables = ref<Table[]>([])
 
-// Функция для проверки актуальности кэша
-const checkIfCacheNeedsUpdate = () => {
+// Функция для проверки актуальности кэша зон
+const checkIfZonesCacheNeedsUpdate = () => {
   try {
-    // Проверяем, есть ли основные данные в кэше
+    // Проверяем, есть ли кэш зон
     const locationsCache = cacheService.get('locations')
-    const tablesCache = cacheService.get('tables')
 
-    if (!locationsCache || !tablesCache) {
-      console.log('Кэш зон или столиков отсутствует')
+    if (!locationsCache) {
+      console.log('Кэш зон отсутствует')
       return true
     }
 
-    // Проверяем время последнего обновления
-    const cacheInfo = cacheService.get('_dashboard_cache_timestamp')
+    // Проверяем время последнего обновления зон
+    const cacheInfo = cacheService.get('_zones_cache_timestamp')
     if (cacheInfo) {
       const lastUpdate = new Date(cacheInfo as string)
       const now = new Date()
       const minutesSinceUpdate = (now.getTime() - lastUpdate.getTime()) / (1000 * 60)
 
-      // Обновляем кэш если прошло больше 30 минут
-      if (minutesSinceUpdate > 30) {
-        console.log(`Кэш дашборда устарел: ${minutesSinceUpdate.toFixed(1)} минут назад`)
+      // Обновляем кэш зон если прошло больше 60 минут (зоны меняются редко)
+      if (minutesSinceUpdate > 60) {
+        console.log(`Кэш зон устарел: ${minutesSinceUpdate.toFixed(1)} минут назад`)
         return true
       }
     }
 
-    console.log('Кэш дашборда актуален')
+    console.log('Кэш зон актуален')
     return false
 
   } catch (error) {
-    console.warn('Ошибка проверки кэша дашборда:', error)
+    console.warn('Ошибка проверки кэша зон:', error)
     return true // При ошибке лучше обновить
   }
 }
 
-// Функция для восстановления данных из кэша
-const restoreFromCache = () => {
-  console.log('Восстанавливаем данные дашборда из кэша...')
+// Функция для восстановления зон из кэша
+const restoreZonesFromCache = () => {
+  console.log('Восстанавливаем зоны из кэша...')
 
   try {
-    // Восстанавливаем зоны
+    // Очищаем устаревший кэш столиков, если он есть
+    if (cacheService.get('tables')) {
+      console.log('Очищаем устаревший кэш столиков...')
+      cacheService.remove('tables')
+      cacheService.remove('_dashboard_cache_timestamp')
+    }
+
+    // Восстанавливаем только зоны
     const locationsCache = cacheService.get('locations') as { locations: Location[] } | null
     if (locationsCache && locationsCache.locations) {
       const activeLocations = locationsCache.locations
@@ -504,36 +513,8 @@ const restoreFromCache = () => {
       console.log(`Восстановлено ${apiZones.length} зон из кэша`)
     }
 
-    // Восстанавливаем столики
-    const tablesCache = cacheService.get('tables') as { tables: (import('@/types/api').Table & { current_order_id?: number | null })[] } | null
-    if (tablesCache && tablesCache.tables && zones.value.length > 1) {
-      // Получаем активные зоны для фильтрации
-      const activeLocationIds = zones.value
-        .filter(zone => zone.id !== 'all')
-        .map(zone => parseInt(zone.id))
-
-      const activeTables = tablesCache.tables.filter(table =>
-        table.is_active && activeLocationIds.includes(table.location_id)
-      )
-
-      // Создаем список локаций для маппинга
-      const locationsForMapping = zones.value
-        .filter(zone => zone.id !== 'all')
-        .map(zone => ({
-          id: parseInt(zone.id),
-          name: zone.name,
-          color: zone.color,
-          is_active: true
-        })) as Location[]
-
-      const uiTables = activeTables.map(table => mapApiTableToTable(table, locationsForMapping))
-      tables.value = uiTables
-
-      console.log(`Восстановлено ${uiTables.length} столиков из кэша`)
-    }
-
   } catch (error) {
-    console.warn('Ошибка восстановления данных дашборда из кэша:', error)
+    console.warn('Ошибка восстановления зон из кэша:', error)
   }
 }
 
@@ -623,8 +604,7 @@ const loadTables = async () => {
       tablesArray = []
     }
 
-    // Кэшируем данные столиков
-    cacheService.set('tables', { tables: tablesArray }, { ttl: 30 * 60 * 1000 }) // 30 минут
+    // НЕ кэшируем данные столиков - они меняются часто
 
     // Получаем только активные локации для фильтрации
     const activeLocationIds = locationsArray
@@ -685,8 +665,8 @@ const loadZones = async () => {
       locationsArray = []
     }
 
-    // Кэшируем данные локаций
-    cacheService.set('locations', { locations: locationsArray }, { ttl: 30 * 60 * 1000 }) // 30 минут
+    // Кэшируем данные локаций (зоны меняются редко)
+    cacheService.set('locations', { locations: locationsArray }, { ttl: 60 * 60 * 1000 }) // 60 минут
 
     // Фильтруем только активные локации
     const filteredLocations = locationsArray
@@ -706,6 +686,9 @@ const loadZones = async () => {
     ]
 
     console.log('Зоны загружены:', zones.value)
+
+    // Сохраняем timestamp успешной загрузки зон
+    cacheService.set('_zones_cache_timestamp', new Date().toISOString(), { ttl: 120 * 60 * 1000 }) // 120 минут
 
     // Показываем уведомление об успешной загрузке
     if (apiZones.length > 0) {
@@ -742,12 +725,10 @@ const loadOrdersData = async () => {
       return
     }
 
-    // TODO: Пока комментируем загрузку заказов, так как нужно проверить API типы
     // Загружаем данные о заказах
-    /*
     const orderPromises = tablesWithOrders.map(async (table) => {
       try {
-        const order = await apiService.getOrder(table.current_order_id!)
+        const order: ApiOrder = await apiService.getOrder(table.current_order_id!)
         return { table, order }
       } catch (error) {
         console.warn(`Ошибка загрузки заказа ${table.current_order_id} для столика ${table.number}:`, error)
@@ -766,8 +747,8 @@ const loadOrdersData = async () => {
         }
 
         // Обновляем сумму заказа
-        if (order.total) {
-          table.orderAmount = order.total
+        if (order.total_price) {
+          table.orderAmount = order.total_price
         }
 
         // Обновляем статус на основе статуса заказа
@@ -776,7 +757,6 @@ const loadOrdersData = async () => {
         }
       }
     })
-    */
 
     console.log('Данные о заказах загружены и применены к столикам')
 
@@ -790,17 +770,17 @@ const loadAllDashboardData = async () => {
   console.log('Полная загрузка данных дашборда...')
 
   try {
-    // Загружаем зоны и столики
+    // Загружаем зоны и столики (столики всегда свежие)
     await Promise.all([
       loadZones(),
       loadTables()
     ])
 
-    // Загружаем данные о заказах для столиков
+    // Загружаем данные о заказах для столиков (не кэшируем)
     await loadOrdersData()
 
-    // Сохраняем timestamp успешной загрузки (дольше чем данные, чтобы не истек раньше)
-    cacheService.set('_dashboard_cache_timestamp', new Date().toISOString(), { ttl: 60 * 60 * 1000 }) // 60 минут
+    // Сохраняем timestamp успешной загрузки зон
+    cacheService.set('_zones_cache_timestamp', new Date().toISOString(), { ttl: 120 * 60 * 1000 }) // 120 минут
 
     console.log('Полная загрузка данных дашборда завершена')
 
@@ -864,7 +844,7 @@ if (typeof window !== 'undefined') {
     qresDashDebug: DashboardDebug
   }).debugTables = debugTables
 
-  // Добавляем отладочные функции для кэша дашборда
+  // Добавляем отладочные функции для кэша зон
   ;(window as unknown as Window & {
     debugZones: () => void
     debugTables: () => void
@@ -872,12 +852,10 @@ if (typeof window !== 'undefined') {
   }).qresDashDebug = {
     getCacheInfo: () => {
       const locationsCache = cacheService.get('locations')
-      const tablesCache = cacheService.get('tables')
-      const timestamp = cacheService.get('_dashboard_cache_timestamp')
+      const timestamp = cacheService.get('_zones_cache_timestamp')
 
       console.log('Кэш дашборда:', {
         locations: locationsCache ? 'Есть' : 'Отсутствует',
-        tables: tablesCache ? 'Есть' : 'Отсутствует',
         timestamp: timestamp || 'Отсутствует',
         zonesInMemory: zones.value.length,
         tablesInMemory: tables.value.length
@@ -885,9 +863,8 @@ if (typeof window !== 'undefined') {
     },
     clearCache: () => {
       cacheService.remove('locations')
-      cacheService.remove('tables')
-      cacheService.remove('_dashboard_cache_timestamp')
-      console.log('Кэш дашборда очищен')
+      cacheService.remove('_zones_cache_timestamp')
+      console.log('Кэш зон очищен')
     },
     forceReload: () => {
       loadAllDashboardData().then(() => {
@@ -895,8 +872,8 @@ if (typeof window !== 'undefined') {
       })
     },
     restoreFromCache: () => {
-      restoreFromCache()
-      console.log('Данные восстановлены из кэша')
+      restoreZonesFromCache()
+      console.log('Зоны восстановлены из кэша')
     }
   }
 
@@ -1007,6 +984,20 @@ const filteredTables = computed(() => {
     }
   }
 
+  // Сортируем столики по зонам и номерам
+  filtered.sort((a, b) => {
+    // Сначала сортируем по зонам
+    const zoneA = getZoneName(a.zone)
+    const zoneB = getZoneName(b.zone)
+
+    if (zoneA !== zoneB) {
+      return zoneA.localeCompare(zoneB)
+    }
+
+    // Если зоны одинаковые, сортируем по номеру столика
+    return a.number - b.number
+  })
+
   return filtered
 })
 
@@ -1061,21 +1052,26 @@ const getTableIcon = (status: string) => {
   return icons[status as keyof typeof icons] || 'bi-question-circle'
 }
 
+const getZoneName = (zoneId: string) => {
+  const zone = zones.value.find(z => z.id === zoneId)
+  return zone ? zone.name : 'Неизвестная зона'
+}
+
 const openTable = (table: Table) => {
   console.log('Открыть столик:', table.number)
-  // Перенаправляем на страницу создания заказа с номером столика
+  // Перенаправляем на страницу создания заказа с ID столика
   router.push({
     path: '/create-order',
-    query: { table: table.number }
+    query: { table: table.id }
   })
 }
 
 const addToOrder = (table: Table) => {
   console.log('Добавить к заказу столика:', table.number)
-  // Перенаправляем на страницу создания заказа с номером столика
+  // Перенаправляем на страницу создания заказа с ID столика
   router.push({
     path: '/create-order',
-    query: { table: table.number }
+    query: { table: table.id }
   })
 }
 
@@ -1093,44 +1089,108 @@ const confirmQrOrder = (table: Table) => {
   playNotificationSound()
 }
 
-const viewQrOrder = (table: Table) => {
+const viewQrOrder = async (table: Table) => {
   console.log('Посмотреть QR заказ столика:', table.number)
-  // Создаем демо-данные QR заказа
-  selectedOrder.value = {
-    id: table.id,
-    tableNumber: table.number,
-    items: [
-      { id: 1, name: 'Пицца Маргарита', price: 680, quantity: 1, category: 'Пицца', notes: 'Заказ через QR-код' },
-      { id: 2, name: 'Капучино', price: 180, quantity: 2, category: 'Напитки' }
-    ],
-    total: table.orderAmount,
-    status: 'active',
-    orderTime: table.orderTime || new Date(),
-    waiterName: waiterName.value,
-    notes: 'QR заказ. Требует подтверждения официанта'
+
+  if (!table.current_order_id) {
+    console.warn('Нет активного заказа для столика', table.number)
+    return
   }
-  showOrderModal.value = true
+
+  try {
+    // Загружаем реальные данные заказа из API
+    const orderData: ApiOrder = await apiService.getOrder(table.current_order_id)
+    console.log('Загружен заказ:', orderData)
+
+    // Преобразуем данные API в формат UI
+    selectedOrder.value = {
+      id: orderData.id,
+      tableNumber: table.number,
+      items: orderData.items?.map((item: ApiOrderItem) => ({
+        id: item.id || 0,
+        name: item.dish_name || 'Неизвестное блюдо',
+        price: item.unit_price || 0,
+        quantity: item.quantity || 1,
+        category: 'Без категории', // API не предоставляет категорию в OrderItem
+        notes: item.comment || undefined
+      })) || [],
+      total: orderData.total_price || table.orderAmount,
+      status: orderData.status === 'ready' ? 'ready' : 'active',
+      orderTime: orderData.created_at ? new Date(orderData.created_at) : (table.orderTime || new Date()),
+      waiterName: orderData.waiter_name || waiterName.value,
+      notes: orderData.notes || 'QR заказ. Требует подтверждения официанта'
+    }
+    showOrderModal.value = true
+
+  } catch (error) {
+    console.error('Ошибка загрузки QR заказа:', error)
+    handleApiError(error, 'загрузки QR заказа')
+
+    // В случае ошибки показываем базовую информацию
+    selectedOrder.value = {
+      id: table.current_order_id,
+      tableNumber: table.number,
+      items: [],
+      total: table.orderAmount,
+      status: 'active',
+      orderTime: table.orderTime || new Date(),
+      waiterName: waiterName.value,
+      notes: 'Ошибка загрузки данных заказа'
+    }
+    showOrderModal.value = true
+  }
 }
 
-const viewOrder = (table: Table) => {
+const viewOrder = async (table: Table) => {
   console.log('Посмотреть заказ столика:', table.number)
-  // Создаем демо-данные заказа
-  selectedOrder.value = {
-    id: table.id,
-    tableNumber: table.number,
-    items: [
-      { id: 1, name: 'Борщ украинский', price: 350, quantity: 2, category: 'Первые блюда', notes: 'Без сметаны' },
-      { id: 2, name: 'Котлета по-киевски', price: 450, quantity: 1, category: 'Основные блюда' },
-      { id: 3, name: 'Салат Цезарь', price: 280, quantity: 1, category: 'Салаты', notes: 'Соус отдельно' },
-      { id: 4, name: 'Чай черный', price: 120, quantity: 2, category: 'Напитки' }
-    ],
-    total: table.orderAmount,
-    status: table.status === 'ready' ? 'ready' : 'active',
-    orderTime: table.orderTime || new Date(),
-    waiterName: waiterName.value,
-    notes: 'Столик у окна, гости просили быстрее'
+
+  if (!table.current_order_id) {
+    console.warn('Нет активного заказа для столика', table.number)
+    return
   }
-  showOrderModal.value = true
+
+  try {
+    // Загружаем реальные данные заказа из API
+    const orderData: ApiOrder = await apiService.getOrder(table.current_order_id)
+    console.log('Загружен заказ:', orderData)
+
+    // Преобразуем данные API в формат UI
+    selectedOrder.value = {
+      id: orderData.id,
+      tableNumber: table.number,
+      items: orderData.items?.map((item: ApiOrderItem) => ({
+        id: item.id || 0,
+        name: item.dish_name || 'Неизвестное блюдо',
+        price: item.unit_price || 0,
+        quantity: item.quantity || 1,
+        category: 'Без категории', // API не предоставляет категорию в OrderItem
+        notes: item.comment || undefined
+      })) || [],
+      total: orderData.total_price || table.orderAmount,
+      status: table.status === 'ready' ? 'ready' : 'active',
+      orderTime: orderData.created_at ? new Date(orderData.created_at) : (table.orderTime || new Date()),
+      waiterName: orderData.waiter_name || waiterName.value,
+      notes: orderData.notes || undefined
+    }
+    showOrderModal.value = true
+
+  } catch (error) {
+    console.error('Ошибка загрузки заказа:', error)
+    handleApiError(error, 'загрузки заказа')
+
+    // В случае ошибки показываем базовую информацию
+    selectedOrder.value = {
+      id: table.current_order_id,
+      tableNumber: table.number,
+      items: [],
+      total: table.orderAmount,
+      status: table.status === 'ready' ? 'ready' : 'active',
+      orderTime: table.orderTime || new Date(),
+      waiterName: waiterName.value,
+      notes: 'Ошибка загрузки данных заказа'
+    }
+    showOrderModal.value = true
+  }
 }
 
 const closeOrderModal = () => {
@@ -1229,21 +1289,22 @@ onMounted(async () => {
   updateTime()
   timeInterval = setInterval(updateTime, 1000) as unknown as number
 
-  // Сначала восстанавливаем данные из кэша для быстрого отображения
-  restoreFromCache()
+  // Сначала восстанавливаем зоны из кэша для быстрого отображения
+  restoreZonesFromCache()
 
-  // Проверяем актуальность кэша и загружаем только при необходимости
-  const shouldUpdateCache = checkIfCacheNeedsUpdate()
+  // Проверяем актуальность кэша зон и загружаем только при необходимости
+  const shouldUpdateZonesCache = checkIfZonesCacheNeedsUpdate()
 
-  if (shouldUpdateCache) {
-    console.log('Кэш дашборда устарел или отсутствует, загружаем данные...')
+  if (shouldUpdateZonesCache) {
+    console.log('Кэш зон устарел или отсутствует, загружаем данные...')
     await loadAllDashboardData()
   } else {
-    console.log('Кэш дашборда актуален, загрузка с сервера не требуется')
+    console.log('Кэш зон актуален, загружаем только столики')
+    // Загружаем только столики (они не кэшируются)
+    await loadTables()
+    // Загружаем данные о заказах
+    await loadOrdersData()
   }
-
-  // Загружаем данные о заказах
-  await loadOrdersData()
 
   // Показываем отладочную информацию о зонах в режиме разработки
   if (import.meta.env.DEV) {

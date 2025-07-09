@@ -521,6 +521,15 @@
   text-align: center;
 }
 
+.dashboard-zone-name {
+  font-size: 0.8rem;
+  font-weight: 500;
+  color: var(--qres-gray-400);
+  margin-bottom: 0.3rem;
+  text-transform: uppercase;
+  letter-spacing: 0.05em;
+}
+
 .dashboard-seats-count {
   display: flex;
   align-items: center;

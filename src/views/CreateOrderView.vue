@@ -350,7 +350,8 @@ interface OrderType {
 
 // Интерфейс для столика в UI
 interface UITable {
-  id: string
+  id: string           // Настоящий ID столика из API
+  number: string       // Номер столика для отображения
   name: string
   capacity: number
   zone: string
@@ -700,7 +701,7 @@ const handleDeliveryOrderConfirm = async (deliveryData?: { customerName: string;
     // Определяем ID столика (для доставки используем специальный столик)
     let tableId: number
     if (selectedOrderType.value === 'table' && selectedTable.value) {
-      tableId = parseInt(selectedTable.value)
+      tableId = parseInt(selectedTable.value) // Здесь selectedTable.value уже содержит правильный ID столика
     } else {
       // Для доставки и заказов на вынос используем специальный столик ID 1
       tableId = 1
@@ -1054,7 +1055,12 @@ const createOrder = async () => {
     let orderTypeText = ''
     if (selectedOrderType.value === 'table') {
       const table = availableTables.value.find(t => t.id === selectedTable.value)
-      orderTypeText = table ? `${table.zone} - ${table.name}` : `Столик ${selectedTable.value}`
+      if (table) {
+        orderTypeText = `${table.zone} - ${table.name}`
+      } else {
+        // Если столик не найден, пытаемся найти его номер для отображения
+        orderTypeText = `Столик ${selectedTable.value}`
+      }
     } else if (selectedOrderType.value === 'takeaway') {
       orderTypeText = 'С собой'
     } else if (selectedOrderType.value === 'delivery') {
@@ -1379,7 +1385,8 @@ const mapApiTableToUITable = (apiTable: import('@/types/api').Table & { current_
   const location = locations.find(loc => loc.id === apiTable.location_id)
 
   return {
-    id: apiTable.number.toString(),
+    id: apiTable.id.toString(),           // Используем настоящий ID столика
+    number: apiTable.number.toString(),   // Номер столика для отображения
     name: `Столик ${apiTable.number}`,
     capacity: apiTable.seats,
     zone: location?.name || 'Неизвестная зона'
