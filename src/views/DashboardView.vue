@@ -345,13 +345,13 @@
                 Итого: {{ selectedOrder?.total }}₽
               </div>
 
-              <!-- Кнопка печати справа -->
+              <!-- Кнопка закрытия справа -->
               <button
-                @click="printOrderBill"
-                class="qres-btn qres-btn-outline order-print-btn"
+                @click="closeOrderModal"
+                class="qres-btn qres-btn-outline order-close-btn"
               >
-                <i class="bi bi-printer me-2"></i>
-                Печать счета
+                <i class="bi bi-x-lg me-2"></i>
+                Закрыть
               </button>
             </div>
           </div>
@@ -1408,12 +1408,12 @@ const closeOrderModal = () => {
   selectedOrder.value = null
 }
 
-const printOrderBill = () => {
-  if (selectedOrder.value) {
-    console.log('Печать счета для заказа столика:', selectedOrder.value.tableNumber)
-    // Здесь будет логика печати счета
-  }
-}
+// const printOrderBill = () => {
+//   if (selectedOrder.value) {
+//     console.log('Печать счета для заказа столика:', selectedOrder.value.tableNumber)
+//     // Здесь будет логика печати счета
+//   }
+// }
 
 const printBill = (table: Table) => {
   console.log('Печать счета для столика:', table.number)
