@@ -218,7 +218,7 @@
                 <button
                   v-if="table.status === 'occupied'"
                   @click="addToOrder(table)"
-                  class="dashboard-action-btn dashboard-success"
+                  class="dashboard-action-btn dashboard-primary"
                   title="Добавить к заказу"
                 >
                   <i class="bi bi-plus"></i>
@@ -227,10 +227,10 @@
                 <button
                   v-if="table.status === 'occupied'"
                   @click="viewOrder(table)"
-                  class="dashboard-action-btn dashboard-view-order"
+                  class="dashboard-action-btn dashboard-warning"
                   title="Посмотреть заказ"
                 >
-                  <i class="bi bi-eye"></i>
+                  <i class="bi bi-receipt"></i>
                 </button>
 
                 <button
@@ -245,10 +245,10 @@
                 <button
                   v-if="table.status === 'qr-waiting'"
                   @click="viewQrOrder(table)"
-                  class="dashboard-action-btn dashboard-qr-view"
+                  class="dashboard-action-btn dashboard-warning"
                   title="Посмотреть заказ"
                 >
-                  <i class="bi bi-eye"></i>
+                  <i class="bi bi-receipt"></i>
                 </button>
 
                 <button
@@ -263,10 +263,10 @@
                 <button
                   v-if="table.status === 'occupied' || table.status === 'qr-waiting'"
                   @click="printBill(table)"
-                  class="dashboard-action-btn dashboard-print-bill"
-                  title="Счет"
+                  class="dashboard-action-btn dashboard-success"
+                  title="Закрыть счет"
                 >
-                  <i class="bi bi-receipt"></i>
+                  <i class="bi bi-check-circle"></i>
                 </button>
 
                 <button
@@ -318,13 +318,14 @@
                   <div class="order-item-info">
                     <div class="order-item-name">{{ item.name }}</div>
                     <div class="order-item-category">{{ item.category }}</div>
+                    <div class="order-item-unit-price">{{ item.unitPrice }}₽ за шт.</div>
                     <div v-if="item.notes" class="order-item-notes">
                       <i class="bi bi-chat-text me-1"></i>
                       {{ item.notes }}
                     </div>
                   </div>
                   <div class="order-item-quantity">{{ item.quantity }}x</div>
-                  <div class="order-item-price">{{ item.price * item.quantity }}₽</div>
+                  <div class="order-item-price">{{ item.totalPrice }}₽</div>
                 </div>
               </div>
             </div>
@@ -399,7 +400,8 @@ interface LocationsResponse {
 interface OrderItem {
   id: number
   name: string
-  price: number
+  unitPrice: number  // Цена за единицу
+  totalPrice: number // Общая стоимость позиции
   quantity: number
   category: string
   notes?: string
@@ -1075,6 +1077,194 @@ const addToOrder = (table: Table) => {
   })
 }
 
+// Функция для загрузки категорий блюд для заказа
+const loadDishCategories = async (order: Order | null) => {
+  if (!order || !order.items.length) return
+
+  try {
+    // Получаем ВСЕ категории, блюда и вариации отдельно
+    const [categoriesData, dishesData, orderData] = await Promise.all([
+      apiService.getCategories(), // Получаем ВСЕ категории системы
+      apiService.getDishes(), // Получаем все блюда
+      apiService.getOrder(order.id) // Получаем детали заказа для dish_id и dish_variation_id
+    ])
+
+    console.log('Загружены все категории системы:', categoriesData)
+    console.log('Загружены блюда:', dishesData)
+    console.log('Загружены детали заказа:', orderData)
+
+    // Создаем маппинг блюд к категориям
+    const dishCategoryMap = new Map<number, string>()
+
+    // Создаем маппинг вариаций к ценам
+    const variationPriceMap = new Map<number, { unit_price: number, variation_name: string }>()
+
+    // Обрабатываем блюда и их категории
+    let dishesArray: import('@/types/api').Dish[] = []
+    if (Array.isArray(dishesData)) {
+      dishesArray = dishesData
+    } else if (dishesData && typeof dishesData === 'object' && 'dishes' in dishesData) {
+      dishesArray = (dishesData as { dishes: import('@/types/api').Dish[] }).dishes || []
+    }
+
+    // Обрабатываем категории
+    let categoriesArray: import('@/types/api').Category[] = []
+    if (Array.isArray(categoriesData)) {
+      categoriesArray = categoriesData
+    } else if (categoriesData && typeof categoriesData === 'object' && 'categories' in categoriesData) {
+      categoriesArray = (categoriesData as { categories: import('@/types/api').Category[] }).categories || []
+    }
+
+    console.log('Массив блюд для обработки:', dishesArray)
+    console.log('Массив категорий для обработки:', categoriesArray)
+
+    // Показываем ID всех категорий
+    const categoryIds = categoriesArray.map(cat => cat.id)
+    console.log('ID всех категорий в системе:', categoryIds)
+
+    // Создаем карту категорий блюд
+    dishesArray.forEach(dish => {
+      console.log(`Проверяем блюдо: ID=${dish.id}, название="${dish.name}", category_id=${dish.category_id}`)
+      const category = categoriesArray.find(cat => cat.id === dish.category_id)
+      if (category) {
+        dishCategoryMap.set(dish.id, category.name)
+        console.log(`  ✅ Найдена категория: ${category.name}`)
+      } else {
+        console.log(`  ❌ Категория не найдена для category_id=${dish.category_id}`)
+      }
+    })
+
+    // Собираем уникальные ID вариаций из заказа
+    const variationIds = new Set<number>()
+    orderData.items?.forEach(item => {
+      if (item.dish_variation_id) {
+        variationIds.add(item.dish_variation_id)
+      }
+    })
+
+    console.log('Нужно загрузить вариации с ID:', Array.from(variationIds))
+
+    // Загружаем информацию о вариациях
+    if (variationIds.size > 0) {
+      try {
+        // Загружаем вариации для каждого dish_id из заказа
+        const dishIds = new Set<number>()
+        orderData.items?.forEach(item => {
+          if (item.dish_id) {
+            dishIds.add(item.dish_id)
+          }
+        })
+
+        const variationPromises = Array.from(dishIds).map(async (dishId) => {
+          try {
+            const variations = await apiService.getDishVariations(dishId)
+            console.log(`Загружены вариации для блюда ${dishId}:`, variations)
+            return { dishId, variations }
+          } catch (error) {
+            console.warn(`Ошибка загрузки вариаций для блюда ${dishId}:`, error)
+            return { dishId, variations: [] }
+          }
+        })
+
+        const variationsResults = await Promise.all(variationPromises)
+
+        // Обрабатываем загруженные вариации
+        variationsResults.forEach(({ variations }) => {
+          let variationsArray: import('@/types/api').DishVariation[] = []
+          if (Array.isArray(variations)) {
+            variationsArray = variations
+          } else if (variations && typeof variations === 'object' && 'variations' in variations) {
+            variationsArray = (variations as { variations: import('@/types/api').DishVariation[] }).variations || []
+          }
+
+          variationsArray.forEach(variation => {
+            variationPriceMap.set(variation.id, {
+              unit_price: Number(variation.price),
+              variation_name: variation.name
+            })
+            console.log(`  📋 Вариация ${variation.id} "${variation.name}": ${variation.price}₽`)
+          })
+        })
+
+        console.log('Создана карта цен вариаций:', variationPriceMap)
+      } catch (error) {
+        console.warn('Ошибка загрузки вариаций:', error)
+      }
+    }
+
+    console.log('Создана карта категорий блюд:', dishCategoryMap)
+
+    // Обновляем категории и цены в элементах заказа
+    console.log('Начинаем обновление категорий и цен в элементах заказа...')
+    order.items.forEach((item, index) => {
+      console.log(`Обрабатываем элемент заказа ${index + 1}: ID=${item.id}, название="${item.name}"`)
+
+      const apiItem = orderData.items?.find(apiItem => apiItem.id === item.id)
+      console.log(`  Найден API элемент:`, apiItem)
+
+      if (apiItem) {
+        // Обновляем категорию
+        if (apiItem.dish_id) {
+          console.log(`  dish_id элемента: ${apiItem.dish_id}`)
+          const categoryName = dishCategoryMap.get(apiItem.dish_id)
+          console.log(`  Найденная категория из карты: ${categoryName}`)
+
+          if (categoryName) {
+            item.category = categoryName
+            console.log(`  ✅ Установлена категория: ${categoryName}`)
+          } else {
+            item.category = 'Без категории'
+            console.log(`  ⚠️ Категория не найдена, установлено: "Без категории"`)
+          }
+        }
+
+        // Обновляем цены из вариации
+        if (apiItem.dish_variation_id) {
+          console.log(`  dish_variation_id элемента: ${apiItem.dish_variation_id}`)
+          const variationInfo = variationPriceMap.get(apiItem.dish_variation_id)
+          console.log(`  Найденная информация о вариации:`, variationInfo)
+
+          if (variationInfo) {
+            item.unitPrice = variationInfo.unit_price
+            item.totalPrice = variationInfo.unit_price * item.quantity
+            console.log(`  💰 Установлена цена за единицу: ${item.unitPrice}₽`)
+            console.log(`  💰 Рассчитана общая цена: ${item.totalPrice}₽ (${item.unitPrice} × ${item.quantity})`)
+          } else {
+            console.log(`  ⚠️ Информация о вариации не найдена, цены остаются нулевыми`)
+          }
+        } else {
+          console.log(`  ❌ Нет dish_variation_id у элемента`)
+        }
+      } else {
+        item.category = 'Неизвестная категория'
+        console.log(`  ❌ API элемент не найден, установлено: "Неизвестная категория"`)
+      }
+
+      console.log(`  Итоговое состояние элемента: категория="${item.category}", цена=${item.unitPrice}₽, итого=${item.totalPrice}₽`)
+    })
+
+    console.log('Категории блюд и цены загружены и обновлены')
+    console.log('Финальное состояние элементов заказа:', order.items.map(item => ({
+      id: item.id,
+      name: item.name,
+      category: item.category,
+      unitPrice: item.unitPrice,
+      totalPrice: item.totalPrice,
+      quantity: item.quantity
+    })))
+
+  } catch (error) {
+    console.warn('Ошибка загрузки категорий блюд и цен:', error)
+
+    // В случае ошибки устанавливаем "Без категории" и нулевые цены
+    order.items.forEach(item => {
+      item.category = 'Без категории'
+      item.unitPrice = 0
+      item.totalPrice = 0
+    })
+  }
+}
+
 const serveOrder = (table: Table) => {
   console.log('Подать заказ столика:', table.number)
   // Здесь будет логика подачи заказа
@@ -1106,14 +1296,18 @@ const viewQrOrder = async (table: Table) => {
     selectedOrder.value = {
       id: orderData.id,
       tableNumber: table.number,
-      items: orderData.items?.map((item: ApiOrderItem) => ({
-        id: item.id || 0,
-        name: item.dish_name || 'Неизвестное блюдо',
-        price: item.unit_price || 0,
-        quantity: item.quantity || 1,
-        category: 'Без категории', // API не предоставляет категорию в OrderItem
-        notes: item.comment || undefined
-      })) || [],
+      items: orderData.items?.map((item: ApiOrderItem) => {
+        console.log('Обрабатываем элемент QR заказа:', item)
+        return {
+          id: item.id || 0,
+          name: item.dish_name || 'Неизвестное блюдо',
+          unitPrice: Number(item.unit_price) || 0,
+          totalPrice: Number(item.total_price) || 0,
+          quantity: item.quantity || 1,
+          category: 'Загружается...', // Будем загружать асинхронно
+          notes: item.comment || undefined
+        }
+      }) || [],
       total: orderData.total_price || table.orderAmount,
       status: orderData.status === 'ready' ? 'ready' : 'active',
       orderTime: orderData.created_at ? new Date(orderData.created_at) : (table.orderTime || new Date()),
@@ -1121,6 +1315,9 @@ const viewQrOrder = async (table: Table) => {
       notes: orderData.notes || 'QR заказ. Требует подтверждения официанта'
     }
     showOrderModal.value = true
+
+    // Асинхронно загружаем категории блюд
+    loadDishCategories(selectedOrder.value)
 
   } catch (error) {
     console.error('Ошибка загрузки QR заказа:', error)
@@ -1153,19 +1350,29 @@ const viewOrder = async (table: Table) => {
     // Загружаем реальные данные заказа из API
     const orderData: ApiOrder = await apiService.getOrder(table.current_order_id)
     console.log('Загружен заказ:', orderData)
+    console.log('Позиции заказа:', orderData.items)
 
     // Преобразуем данные API в формат UI
     selectedOrder.value = {
       id: orderData.id,
       tableNumber: table.number,
-      items: orderData.items?.map((item: ApiOrderItem) => ({
-        id: item.id || 0,
-        name: item.dish_name || 'Неизвестное блюдо',
-        price: item.unit_price || 0,
-        quantity: item.quantity || 1,
-        category: 'Без категории', // API не предоставляет категорию в OrderItem
-        notes: item.comment || undefined
-      })) || [],
+      items: orderData.items?.map((item: ApiOrderItem) => {
+        console.log('Обрабатываем элемент заказа:', item)
+        console.log('  unit_price:', item.unit_price, 'typeof:', typeof item.unit_price)
+        console.log('  total_price:', item.total_price, 'typeof:', typeof item.total_price)
+        console.log('  После Number(unit_price):', Number(item.unit_price))
+        console.log('  После Number(total_price):', Number(item.total_price))
+
+        return {
+          id: item.id || 0,
+          name: item.dish_name || 'Неизвестное блюдо',
+          unitPrice: Number(item.unit_price) || 0,
+          totalPrice: Number(item.total_price) || 0,
+          quantity: item.quantity || 1,
+          category: 'Загружается...', // Будем загружать асинхронно
+          notes: item.comment || undefined
+        }
+      }) || [],
       total: orderData.total_price || table.orderAmount,
       status: table.status === 'ready' ? 'ready' : 'active',
       orderTime: orderData.created_at ? new Date(orderData.created_at) : (table.orderTime || new Date()),
@@ -1173,6 +1380,9 @@ const viewOrder = async (table: Table) => {
       notes: orderData.notes || undefined
     }
     showOrderModal.value = true
+
+    // Асинхронно загружаем категории блюд
+    loadDishCategories(selectedOrder.value)
 
   } catch (error) {
     console.error('Ошибка загрузки заказа:', error)
