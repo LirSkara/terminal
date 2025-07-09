@@ -184,29 +184,11 @@
 
               <!-- Итого и оформление -->
               <div v-if="cartItems.length > 0" class="cart-footer">
-
-                <!-- Способы оплаты -->
-                <div class="payment-methods">
-                  <h4>Способ оплаты:</h4>
-                  <div class="payment-options">
-                    <button
-                      v-for="method in paymentMethods"
-                      :key="method.id"
-                      @click="selectedPaymentMethod = method.id"
-                      :class="['payment-btn', { active: selectedPaymentMethod === method.id }]"
-                    >
-                      <i :class="method.icon"></i>
-                      <span>{{ method.name }}</span>
-                    </button>
-                  </div>
-                </div>
-
                 <!-- Кнопки действий -->
                 <div class="cart-actions">
                   <button
                     @click="createOrder"
                     class="create-order-btn"
-                    :disabled="!selectedPaymentMethod"
                   >
                     <i class="bi bi-check-circle-fill"></i>
                     Оформить заказ ({{ totalPrice }}₽)
@@ -335,12 +317,6 @@ interface CartItem {
   totalPrice: number
 }
 
-interface PaymentMethod {
-  id: string
-  name: string
-  icon: string
-}
-
 interface OrderType {
   id: string
   name: string
@@ -374,7 +350,6 @@ const currentTime = ref('')
 const activeCategory = ref('')
 const selectedTable = ref<string | null>(null)
 const cartItems = ref<CartItem[]>([])
-const selectedPaymentMethod = ref<string | null>(null)
 const selectedOrderType = ref<string | null>(null)
 
 // Состояние загрузки
@@ -434,13 +409,6 @@ const orderTypes = ref<OrderType[]>([
 const waiterName = computed(() => {
   return authStore.user?.full_name || authStore.user?.username || 'Не определен'
 })
-
-// Способы оплаты
-const paymentMethods = ref<PaymentMethod[]>([
-  { id: 'cash', name: 'Наличные', icon: 'bi-cash-stack' },
-  { id: 'card', name: 'Карта', icon: 'bi-credit-card' },
-  { id: 'online', name: 'Онлайн', icon: 'bi-phone' }
-])
 
 // Все данные загружаются из API, демо данные удалены
 
@@ -665,7 +633,6 @@ const createAnotherOrder = () => {
   cartItems.value = []
   selectedOrderType.value = null
   selectedTable.value = null
-  selectedPaymentMethod.value = null
 
   // Показываем модальное окно выбора типа заказа для нового заказа
   openOrderTypeModal()
@@ -675,7 +642,6 @@ const handleDeliveryOrderConfirm = async (deliveryData?: { customerName: string;
   console.log('Подтверждение заказа доставки:', {
     orderType: selectedOrderType.value,
     items: cartItems.value,
-    paymentMethod: selectedPaymentMethod.value,
     total: totalPrice.value,
     deliveryData
   })
@@ -765,7 +731,6 @@ const handleDeliveryOrderConfirm = async (deliveryData?: { customerName: string;
     cartItems.value = []
     selectedOrderType.value = null
     selectedTable.value = null
-    selectedPaymentMethod.value = null
 
     // Переходим на главную страницу
     showOrderConfirmModal.value = false
@@ -946,7 +911,7 @@ const formatDishPrice = (dish: Dish) => {
 }
 
 const createOrder = async () => {
-  if (!selectedPaymentMethod.value || cartItems.value.length === 0) return
+  if (cartItems.value.length === 0) return
 
   // Проверяем, что выбран тип заказа
   if (!selectedOrderType.value) {
@@ -1070,7 +1035,7 @@ const createOrder = async () => {
     orderConfirmData.value = {
       orderSummaryText: orderTypeText,
       itemsCount: cartItems.value.length,
-      paymentMethodName: getPaymentMethodName(selectedPaymentMethod.value),
+      paymentMethodName: 'Не указан',
       totalPrice: parseFloat(createdOrder.total_price) // Конвертируем строку в число
     }
 
@@ -1118,14 +1083,6 @@ const createOrder = async () => {
       sound: true
     })
   }
-}
-
-// Вспомогательная функция для получения названия способа оплаты
-const getPaymentMethodName = (methodId: string | null): string => {
-  if (!methodId) return 'Не выбрано'
-
-  const method = paymentMethods.value.find(m => m.id === methodId)
-  return method?.name || methodId
 }
 
 // Функция для проверки актуальности кэша
