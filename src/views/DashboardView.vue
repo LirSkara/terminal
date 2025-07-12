@@ -262,7 +262,7 @@
 
                 <button
                   v-if="table.status === 'occupied' || table.status === 'qr-waiting'"
-                  @click="printBill(table)"
+                  @click="openCloseOrderModal(table)"
                   class="dashboard-action-btn dashboard-success"
                   title="Закрыть счет"
                 >
@@ -283,6 +283,17 @@
         </div>
       </div>
     </div>
+
+    <!-- Модальное окно закрытия заказа -->
+    <CloseOrderModal
+      :is-visible="showCloseOrderModal"
+      :order-data="closeOrderData"
+      :payment-methods="paymentMethods"
+      @close="closeCloseOrderModal"
+      @print-precheck="printPrecheckOnly"
+      @update-discount="onUpdateDiscount"
+      @process-closure="onProcessOrderClosure"
+    />
 
     <!-- Модальное окно заказа -->
     <Teleport to="body">
@@ -368,6 +379,7 @@ import { useNotificationStore } from '@/stores/notifications'
 import { useRouter } from 'vue-router'
 import { apiService } from '@/services/api'
 import { cacheService } from '@/services/cache'
+import CloseOrderModal from '@/components/modals/CloseOrderModal.vue'
 import type { Location, Order as ApiOrder, OrderItem as ApiOrderItem } from '@/types/api'
 
 // Типы
@@ -444,6 +456,29 @@ const isLoadingTables = ref(false)
 // Модальное окно заказа
 const showOrderModal = ref(false)
 const selectedOrder = ref<Order | null>(null)
+
+// Модальное окно закрытия заказа
+const showCloseOrderModal = ref(false)
+const closeOrderData = ref<{
+  tableNumber: string | number
+  items: OrderItem[]
+  originalAmount: number
+  finalAmount: number
+  discount: number
+  orderId: number
+} | null>(null)
+
+// Способы оплаты (загружаются из API)
+const paymentMethods = ref<{ id: string; name: string; icon: string; isActive: boolean }[]>([])
+
+// Загрузка способов оплаты по умолчанию (fallback)
+const defaultPaymentMethods = [
+  { id: 'cash', name: 'Наличные', icon: 'bi-cash-stack', isActive: true },
+  { id: 'card', name: 'Банковская карта', icon: 'bi-credit-card', isActive: true },
+  { id: 'sbp', name: 'СБП', icon: 'bi-qr-code', isActive: true },
+  { id: 'transfer', name: 'Безналичный перевод', icon: 'bi-bank', isActive: true },
+  { id: 'mixed', name: 'Смешанная оплата', icon: 'bi-wallet2', isActive: true }
+]
 
 // Зоны ресторана
 const zones = ref<Zone[]>([
@@ -772,10 +807,11 @@ const loadAllDashboardData = async () => {
   console.log('Полная загрузка данных дашборда...')
 
   try {
-    // Загружаем зоны и столики (столики всегда свежие)
+    // Загружаем зоны, столики и способы оплаты параллельно
     await Promise.all([
       loadZones(),
-      loadTables()
+      loadTables(),
+      loadPaymentMethods()
     ])
 
     // Загружаем данные о заказах для столиков (не кэшируем)
@@ -824,12 +860,27 @@ const debugTables = () => {
   console.groupEnd()
 }
 
+// Функция для отладки способов оплаты (показывает подробную информацию)
+const debugPaymentMethods = () => {
+  console.group('🔍 Информация о способах оплаты')
+  console.log('Всего способов оплаты:', paymentMethods.value.length)
+
+  paymentMethods.value.forEach((method, index) => {
+    console.log(`${index + 1}. ${method.name} (ID: ${method.id})`)
+    console.log(`   Иконка: ${method.icon}`)
+    console.log(`   Активен: ${method.isActive}`)
+  })
+
+  console.groupEnd()
+}
+
 // Интерфейс для отладочных функций
 interface DashboardDebug {
   getCacheInfo: () => void
   clearCache: () => void
   forceReload: () => void
   restoreFromCache: () => void
+  reloadPaymentMethods: () => void
 }
 
 // Добавляем debugZones в window для отладки из консоли браузера
@@ -837,19 +888,29 @@ if (typeof window !== 'undefined') {
   (window as unknown as Window & {
     debugZones: () => void
     debugTables: () => void
+    debugPaymentMethods: () => void
     qresDashDebug: DashboardDebug
   }).debugZones = debugZones;
 
   (window as unknown as Window & {
     debugZones: () => void
     debugTables: () => void
+    debugPaymentMethods: () => void
     qresDashDebug: DashboardDebug
-  }).debugTables = debugTables
+  }).debugTables = debugTables;
+
+  (window as unknown as Window & {
+    debugZones: () => void
+    debugTables: () => void
+    debugPaymentMethods: () => void
+    qresDashDebug: DashboardDebug
+  }).debugPaymentMethods = debugPaymentMethods
 
   // Добавляем отладочные функции для кэша зон
   ;(window as unknown as Window & {
     debugZones: () => void
     debugTables: () => void
+    debugPaymentMethods: () => void
     qresDashDebug: DashboardDebug
   }).qresDashDebug = {
     getCacheInfo: () => {
@@ -860,7 +921,8 @@ if (typeof window !== 'undefined') {
         locations: locationsCache ? 'Есть' : 'Отсутствует',
         timestamp: timestamp || 'Отсутствует',
         zonesInMemory: zones.value.length,
-        tablesInMemory: tables.value.length
+        tablesInMemory: tables.value.length,
+        paymentMethodsInMemory: paymentMethods.value.length
       })
     },
     clearCache: () => {
@@ -876,10 +938,16 @@ if (typeof window !== 'undefined') {
     restoreFromCache: () => {
       restoreZonesFromCache()
       console.log('Зоны восстановлены из кэша')
+    },
+    reloadPaymentMethods: () => {
+      loadPaymentMethods().then(() => {
+        console.log('Способы оплаты перезагружены')
+      })
     }
   }
 
   console.log('Dashboard Debug доступен в window.qresDashDebug')
+  console.log('Доступные функции отладки: debugZones(), debugTables(), debugPaymentMethods()')
 }
 
 // Обработчик ошибок API
@@ -1408,17 +1476,188 @@ const closeOrderModal = () => {
   selectedOrder.value = null
 }
 
+// Методы для модального окна закрытия заказа
+const openCloseOrderModal = async (table: Table) => {
+  console.log('Открытие модального окна закрытия заказа для столика:', table.number)
+
+  if (!table.current_order_id) {
+    console.warn('Нет активного заказа для столика', table.number)
+    return
+  }
+
+  try {
+    // Загружаем реальные данные заказа из API
+    const orderData: ApiOrder = await apiService.getOrder(table.current_order_id)
+    console.log('Загружен заказ для закрытия:', orderData)
+
+    // Преобразуем данные API в формат UI для закрытия
+    const orderItems: OrderItem[] = orderData.items?.map((item: ApiOrderItem) => ({
+      id: item.id || 0,
+      name: item.dish_name || 'Неизвестное блюдо',
+      unitPrice: Number(item.unit_price) || 0,
+      totalPrice: Number(item.total_price) || 0,
+      quantity: item.quantity || 1,
+      category: 'Загружается...', // Будем загружать асинхронно
+      notes: item.comment || undefined
+    })) || []
+
+    const originalAmount = orderData.total_price || table.orderAmount
+
+    closeOrderData.value = {
+      tableNumber: table.number,
+      items: orderItems,
+      originalAmount,
+      finalAmount: originalAmount,
+      discount: 0,
+      orderId: orderData.id
+    }
+
+    showCloseOrderModal.value = true
+
+    // Асинхронно загружаем категории блюд
+    await loadDishCategoriesForCloseOrder(orderItems)
+
+  } catch (error) {
+    console.error('Ошибка загрузки заказа для закрытия:', error)
+    handleApiError(error, 'загрузки заказа для закрытия')
+  }
+}
+
+const closeCloseOrderModal = () => {
+  showCloseOrderModal.value = false
+  closeOrderData.value = null
+}
+
+// Обработчики событий для модального окна закрытия заказа
+const onUpdateDiscount = (data: { discount: number; finalAmount: number }) => {
+  if (closeOrderData.value) {
+    closeOrderData.value.discount = data.discount
+    closeOrderData.value.finalAmount = data.finalAmount
+  }
+}
+
+const onProcessOrderClosure = async (data: {
+  paymentMethod: string
+  splitType: 'none' | 'equal'
+  splitPersons: number
+  splitAssignments: Record<number, number[]>
+  finalAmount: number
+  discount: number
+  printReceipt: boolean
+  comment: string
+}) => {
+  if (!closeOrderData.value) {
+    console.warn('Нет данных заказа для закрытия')
+    return
+  }
+
+  console.log('Обработка закрытия заказа:', {
+    tableNumber: closeOrderData.value.tableNumber,
+    ...data
+  })
+
+  try {
+    // Здесь будет API вызов для закрытия заказа
+    // await apiService.closeOrder(closeOrderData.value.orderId, {
+    //   payment_method: data.paymentMethod,
+    //   split_type: data.splitType,
+    //   split_persons: data.splitPersons,
+    //   final_amount: data.finalAmount,
+    //   discount_percent: data.discount,
+    //   print_receipt: data.printReceipt,
+    //   comment: data.comment
+    // })
+
+    // Показываем уведомление об успешном закрытии
+    notificationStore.addNotification({
+      type: 'success',
+      title: 'Заказ закрыт',
+      message: `Заказ столика ${closeOrderData.value.tableNumber} успешно закрыт. Сумма: ${data.finalAmount}₽`,
+      read: false,
+      sound: true
+    })
+
+    // Закрываем модальное окно
+    closeCloseOrderModal()
+
+    // Обновляем данные дашборда
+    await loadTables()
+    await loadOrdersData()
+
+  } catch (error) {
+    console.error('Ошибка закрытия заказа:', error)
+    handleApiError(error, 'закрытия заказа')
+  }
+}
+
+const printPrecheckOnly = () => {
+  console.log('Печать предчека для столика:', closeOrderData.value?.tableNumber)
+  // Здесь будет логика печати предчека
+  notificationStore.addNotification({
+    type: 'success',
+    title: 'Предчек распечатан',
+    message: `Предчек для столика ${closeOrderData.value?.tableNumber} отправлен на печать`,
+    read: false,
+    sound: false
+  })
+}
+
+// Загрузка категорий для модального окна закрытия заказа
+const loadDishCategoriesForCloseOrder = async (orderItems: OrderItem[]) => {
+  if (!orderItems.length) return
+
+  try {
+    // Получаем все категории и блюда
+    const [categoriesData, dishesData] = await Promise.all([
+      apiService.getCategories(),
+      apiService.getDishes()
+    ])
+
+    // Создаем маппинг блюд к категориям (аналогично основной функции)
+    const dishCategoryMap = new Map<number, string>()
+
+    let dishesArray: import('@/types/api').Dish[] = []
+    if (Array.isArray(dishesData)) {
+      dishesArray = dishesData
+    } else if (dishesData && typeof dishesData === 'object' && 'dishes' in dishesData) {
+      dishesArray = (dishesData as { dishes: import('@/types/api').Dish[] }).dishes || []
+    }
+
+    let categoriesArray: import('@/types/api').Category[] = []
+    if (Array.isArray(categoriesData)) {
+      categoriesArray = categoriesData
+    } else if (categoriesData && typeof categoriesData === 'object' && 'categories' in categoriesData) {
+      categoriesArray = (categoriesData as { categories: import('@/types/api').Category[] }).categories || []
+    }
+
+    dishesArray.forEach(dish => {
+      const category = categoriesArray.find(cat => cat.id === dish.category_id)
+      if (category) {
+        dishCategoryMap.set(dish.id, category.name)
+      }
+    })
+
+    // Обновляем категории в элементах заказа
+    orderItems.forEach(item => {
+      // Для закрытия заказа нам нужно будет получить dish_id из API заказа
+      // Пока устанавливаем базовую категорию
+      item.category = 'Блюдо'
+    })
+
+  } catch (error) {
+    console.warn('Ошибка загрузки категорий для закрытия заказа:', error)
+    orderItems.forEach(item => {
+      item.category = 'Без категории'
+    })
+  }
+}
+
 // const printOrderBill = () => {
 //   if (selectedOrder.value) {
 //     console.log('Печать счета для заказа столика:', selectedOrder.value.tableNumber)
 //     // Здесь будет логика печати счета
 //   }
 // }
-
-const printBill = (table: Table) => {
-  console.log('Печать счета для столика:', table.number)
-  // Здесь будет логика печати счета
-}
 
 const closeTable = (table: Table) => {
   console.log('Закрыть столик:', table.number)
@@ -1502,6 +1741,9 @@ onMounted(async () => {
   // Сначала восстанавливаем зоны из кэша для быстрого отображения
   restoreZonesFromCache()
 
+  // Загружаем способы оплаты сразу (они не кэшируются)
+  await loadPaymentMethods()
+
   // Проверяем актуальность кэша зон и загружаем только при необходимости
   const shouldUpdateZonesCache = checkIfZonesCacheNeedsUpdate()
 
@@ -1520,6 +1762,7 @@ onMounted(async () => {
   if (import.meta.env.DEV) {
     debugZones()
     debugTables()
+    debugPaymentMethods()
   }
 
   console.log('Dashboard загружен')
@@ -1547,6 +1790,120 @@ watch(filteredTables, (newTables) => {
     }
   }
 }, { immediate: false })
+
+// Функция для маппинга API способа оплаты в UI формат
+const mapApiPaymentMethodToUI = (apiMethod: import('@/types/api').PaymentMethod) => {
+  // Маппинг иконок по названию способа оплаты
+  const getIcon = (name: string) => {
+    const lowerName = name.toLowerCase()
+    if (lowerName.includes('наличн') || lowerName.includes('cash')) return 'bi-cash-stack'
+    if (lowerName.includes('карт') || lowerName.includes('card')) return 'bi-credit-card'
+    if (lowerName.includes('сбп') || lowerName.includes('qr')) return 'bi-qr-code'
+    if (lowerName.includes('перевод') || lowerName.includes('transfer') || lowerName.includes('банк')) return 'bi-bank'
+    if (lowerName.includes('смешан') || lowerName.includes('mixed')) return 'bi-wallet2'
+    if (lowerName.includes('crypto') || lowerName.includes('крипто')) return 'bi-currency-bitcoin'
+    if (lowerName.includes('paypal')) return 'bi-paypal'
+    return 'bi-credit-card' // По умолчанию
+  }
+
+  return {
+    id: apiMethod.id.toString(),
+    name: apiMethod.name,
+    icon: getIcon(apiMethod.name),
+    isActive: apiMethod.is_active
+  }
+}
+
+// Функция загрузки способов оплаты
+const loadPaymentMethods = async () => {
+  try {
+    console.log('Загрузка способов оплаты из API...')
+
+    // Загружаем все способы оплаты
+    const apiResponse = await apiService.getPaymentMethods()
+    console.log('Получены способы оплаты из API:', apiResponse)
+
+    // Извлекаем массив способов оплаты из ответа
+    const apiMethods = apiResponse.payment_methods
+    console.log('Извлеченный массив способов оплаты:', apiMethods)
+
+    // Детально логируем каждый способ оплаты
+    apiMethods.forEach((method, index) => {
+      console.log(`Способ оплаты ${index + 1}:`, {
+        id: method.id,
+        name: method.name,
+        is_active: method.is_active
+      })
+    })
+
+    // Маппим все способы оплаты (и активные, и неактивные)
+    const allMethods = apiMethods.map(mapApiPaymentMethodToUI)
+    console.log('Все способы оплаты после маппинга:', allMethods)
+
+    // Фильтруем только активные способы оплаты для подсчета
+    const activeMethods = allMethods.filter(method => method.isActive)
+    console.log(`Активных способов оплаты: ${activeMethods.length} из ${allMethods.length}`)
+
+    if (allMethods.length > 0) {
+      // Устанавливаем все способы оплаты из API (включая неактивные)
+      paymentMethods.value = allMethods
+      console.log('Способы оплаты из API загружены:', paymentMethods.value)
+
+      // Показываем уведомление
+      if (activeMethods.length > 0) {
+        notificationStore.addNotification({
+          type: 'success',
+          title: 'Способы оплаты загружены',
+          message: `Доступно ${activeMethods.length} из ${allMethods.length} способов оплаты`,
+          read: false,
+          sound: false
+        })
+      } else {
+        notificationStore.addNotification({
+          type: 'warning',
+          title: 'Способы оплаты загружены',
+          message: `Загружено ${allMethods.length} способов оплаты, но все недоступны`,
+          read: false,
+          sound: false
+        })
+      }
+    } else {
+      console.warn('Нет активных способов оплаты в API, используем значения по умолчанию')
+      console.log('Способы оплаты по умолчанию:', defaultPaymentMethods)
+      // Используем способы оплаты по умолчанию
+      paymentMethods.value = defaultPaymentMethods
+
+      // Показываем предупреждение
+      notificationStore.addNotification({
+        type: 'warning',
+        title: 'Способы оплаты по умолчанию',
+        message: 'API не вернул активных способов оплаты, используются настройки по умолчанию',
+        read: false,
+        sound: false
+      })
+    }
+
+  } catch (error) {
+    console.warn('Ошибка загрузки способов оплаты из API:', error)
+    handleApiError(error, 'загрузки способов оплаты')
+
+    // В случае ошибки используем способы оплаты по умолчанию
+    paymentMethods.value = defaultPaymentMethods
+    console.log('Используются способы оплаты по умолчанию из-за ошибки:', paymentMethods.value)
+
+    // Показываем предупреждение об ошибке
+    notificationStore.addNotification({
+      type: 'error',
+      title: 'Ошибка загрузки способов оплаты',
+      message: 'Не удалось загрузить способы оплаты из API, используются настройки по умолчанию',
+      read: false,
+      sound: false
+    })
+  }
+}
+
+// Первоначальная загрузка способов оплаты
+loadPaymentMethods()
 </script>
 
 <style scoped lang="scss">

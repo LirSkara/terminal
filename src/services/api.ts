@@ -11,6 +11,7 @@ import type {
   Category,
   DishVariation,
   PaymentMethod,
+  PaymentMethodsResponse,
   Location,
   Ingredient,
   AllergenInfo,
@@ -387,8 +388,8 @@ class ApiService {
   // СПОСОБЫ ОПЛАТЫ
   // ===================
 
-  async getPaymentMethods(): Promise<PaymentMethod[]> {
-    const response = await this.api.get<PaymentMethod[]>('/payment-methods/')
+  async getPaymentMethods(): Promise<PaymentMethodsResponse> {
+    const response = await this.api.get<PaymentMethodsResponse>('/payment-methods/')
     return response.data
   }
 

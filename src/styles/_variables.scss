@@ -172,6 +172,36 @@ $qres-breakpoints: (
   }
 }
 
+@mixin custom-scrollbar($width: 8px, $track-color: var(--qres-gray-100), $thumb-color: var(--qres-gray-400)) {
+  &::-webkit-scrollbar {
+    width: $width;
+    height: $width;
+  }
+
+  &::-webkit-scrollbar-track {
+    background: $track-color;
+    border-radius: calc($width / 2);
+  }
+
+  &::-webkit-scrollbar-thumb {
+    background: $thumb-color;
+    border-radius: calc($width / 2);
+    transition: background var(--qres-transition-fast);
+
+    &:hover {
+      background: var(--qres-gray-500);
+    }
+  }
+
+  &::-webkit-scrollbar-corner {
+    background: $track-color;
+  }
+
+  // Firefox поддержка
+  scrollbar-width: thin;
+  scrollbar-color: $thumb-color $track-color;
+}
+
 // === АНИМАЦИИ ===
 @keyframes qres-fadeIn {
   from {

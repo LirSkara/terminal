@@ -196,6 +196,11 @@ export interface PaymentMethod {
   is_active: boolean
 }
 
+export interface PaymentMethodsResponse {
+  payment_methods: PaymentMethod[]
+  total: number
+}
+
 // === WEBSOCKET СОБЫТИЯ ===
 
 export interface WebSocketMessage<T = unknown> {
