@@ -38,14 +38,6 @@
                 <!-- Кнопка создания заказа -->
                 <div class="header-actions">
                   <button
-                    @click="goToOrders"
-                    class="btn btn-outline-primary me-2"
-                    title="Посмотреть все заказы"
-                  >
-                    <i class="bi bi-list-ul me-2"></i>
-                    Все заказы
-                  </button>
-                  <button
                     @click="createNewOrder"
                     class="create-order-btn-large"
                     title="Создать новый заказ"
@@ -1683,10 +1675,6 @@ const closeTable = (table: Table) => {
 
 const createNewOrder = () => {
   router.push({ path: '/create-order' })
-}
-
-const goToOrders = () => {
-  router.push({ path: '/orders' })
 }
 
 const filterTables = (status: string) => {
