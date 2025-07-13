@@ -479,10 +479,11 @@ const loadWaiters = async () => {
     // eslint-disable-next-line @typescript-eslint/no-explicit-any
     const usersArray = (waitersFromServer as any).users || waitersFromServer
 
-    // Преобразуем данные с сервера в нужный формат
+    // Теперь фильтрация по роли не нужна, так как эндпоинт уже возвращает только официантов
+    // Но оставим проверку на is_active для дополнительной безопасности
     const filteredWaiters = usersArray
       // eslint-disable-next-line @typescript-eslint/no-explicit-any
-      .filter((user: any) => user.role === 'waiter' && user.is_active)
+      .filter((user: any) => user.is_active)
       // eslint-disable-next-line @typescript-eslint/no-explicit-any
       .map((user: any) => ({
         id: user.username, // используем username как id для совместимости
