@@ -36,6 +36,15 @@ const router = createRouter({
       }
     },
     {
+      path: '/orders',
+      name: 'orders',
+      component: () => import('@/views/OrdersListView.vue'),
+      meta: {
+        requiresAuth: true,
+        title: 'Все заказы'
+      }
+    },
+    {
       path: '/:pathMatch(.*)*',
       redirect: '/dashboard'
     }

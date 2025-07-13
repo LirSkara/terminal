@@ -38,6 +38,14 @@
                 <!-- Кнопка создания заказа -->
                 <div class="header-actions">
                   <button
+                    @click="goToOrders"
+                    class="btn btn-outline-primary me-2"
+                    title="Посмотреть все заказы"
+                  >
+                    <i class="bi bi-list-ul me-2"></i>
+                    Все заказы
+                  </button>
+                  <button
                     @click="createNewOrder"
                     class="create-order-btn-large"
                     title="Создать новый заказ"
@@ -791,6 +799,12 @@ const loadOrdersData = async () => {
         // Обновляем статус на основе статуса заказа
         if (order.status === 'ready') {
           table.status = 'ready'
+        } else if (order.status === 'served' || order.payment_status === 'paid') {
+          // Если заказ подан или оплачен, столик должен быть свободным
+          table.status = 'free'
+          table.current_order_id = null
+          table.orderTime = null
+          table.orderAmount = 0
         }
       }
     })
@@ -1557,16 +1571,16 @@ const onProcessOrderClosure = async (data: {
   })
 
   try {
-    // Здесь будет API вызов для закрытия заказа
-    // await apiService.closeOrder(closeOrderData.value.orderId, {
-    //   payment_method: data.paymentMethod,
-    //   split_type: data.splitType,
-    //   split_persons: data.splitPersons,
-    //   final_amount: data.finalAmount,
-    //   discount_percent: data.discount,
-    //   print_receipt: data.printReceipt,
-    //   comment: data.comment
-    // })
+    // API вызов для закрытия заказа
+    await apiService.closeOrder(closeOrderData.value.orderId, {
+      payment_method: data.paymentMethod,
+      split_type: data.splitType,
+      split_persons: data.splitPersons,
+      final_amount: data.finalAmount,
+      discount_percent: data.discount,
+      print_receipt: data.printReceipt,
+      comment: data.comment
+    })
 
     // Показываем уведомление об успешном закрытии
     notificationStore.addNotification({
@@ -1669,6 +1683,10 @@ const closeTable = (table: Table) => {
 
 const createNewOrder = () => {
   router.push({ path: '/create-order' })
+}
+
+const goToOrders = () => {
+  router.push({ path: '/orders' })
 }
 
 const filterTables = (status: string) => {

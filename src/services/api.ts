@@ -380,6 +380,63 @@ class ApiService {
     return response.data
   }
 
+  // Закрытие заказа (изменение статуса на served + paid)
+  async closeOrder(orderId: number, closeData: {
+    payment_method: string
+    split_type?: 'none' | 'equal'
+    split_persons?: number
+    final_amount?: number
+    discount_percent?: number
+    print_receipt?: boolean
+    comment?: string
+  }): Promise<Order> {
+    try {
+      // Получаем информацию о заказе
+      console.log(`Закрытие заказа ${orderId}...`)
+      const orderInfo = await this.getOrder(orderId)
+      console.log('Текущее состояние заказа:', {
+        id: orderInfo.id,
+        status: orderInfo.status,
+        payment_status: orderInfo.payment_status,
+        table_id: orderInfo.table_id,
+        total_price: orderInfo.total_price
+      })
+
+      // Проверяем, можно ли закрыть заказ
+      if (orderInfo.status === 'cancelled') {
+        throw new Error('Нельзя закрыть отмененный заказ')
+      }
+
+      // Переводим заказ в статус "подан", если еще не подан
+      if (orderInfo.status !== 'served') {
+        console.log(`Изменяем статус заказа ${orderId} на 'served'...`)
+        await this.updateOrderStatus(orderId, 'served')
+        console.log('✅ Статус заказа изменен на served')
+      }
+
+      // Устанавливаем статус оплаты "оплачен", если еще не оплачен
+      let finalOrder = orderInfo
+      if (orderInfo.payment_status !== 'paid') {
+        console.log(`Изменяем статус оплаты заказа ${orderId} на 'paid'...`)
+        finalOrder = await this.updateOrderPayment(orderId, 'paid')
+        console.log('✅ Статус оплаты изменен на paid')
+      }
+
+      // Освобождаем столик
+      console.log(`Освобождаем столик ${orderInfo.table_id}...`)
+      await this.updateTableStatus(orderInfo.table_id, false)
+      console.log('✅ Столик освобожден')
+
+      console.log(`🎉 Заказ ${orderId} успешно закрыт! Столик ${orderInfo.table_id} свободен. Способ оплаты: ${closeData.payment_method}`)
+
+      return finalOrder
+
+    } catch (error) {
+      console.error(`❌ Ошибка закрытия заказа ${orderId}:`, error)
+      throw error
+    }
+  }
+
   async cancelOrder(orderId: number): Promise<void> {
     await this.api.delete(`/orders/${orderId}`)
   }
