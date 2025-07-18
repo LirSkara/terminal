@@ -195,10 +195,10 @@
                     </div>
                   </template>
 
-                  <template v-if="table.status === 'cleaning'">
-                    <div class="dashboard-cleaning-indicator">
-                      <i class="bi bi-arrow-clockwise"></i>
-                      Уборка
+                  <template v-if="table.status === 'dining'">
+                    <div class="dashboard-dining-indicator">
+                      <i class="bi bi-cup-hot"></i>
+                      Доедают
                     </div>
                   </template>
                 </div>
@@ -225,7 +225,25 @@
                 </button>
 
                 <button
+                  v-if="table.status === 'dining'"
+                  @click="addToOrder(table)"
+                  class="dashboard-action-btn dashboard-primary"
+                  title="Дополнительный заказ"
+                >
+                  <i class="bi bi-plus"></i>
+                </button>
+
+                <button
                   v-if="table.status === 'occupied'"
+                  @click="viewOrder(table)"
+                  class="dashboard-action-btn dashboard-warning"
+                  title="Посмотреть заказ"
+                >
+                  <i class="bi bi-receipt"></i>
+                </button>
+
+                <button
+                  v-if="table.status === 'dining'"
                   @click="viewOrder(table)"
                   class="dashboard-action-btn dashboard-warning"
                   title="Посмотреть заказ"
@@ -261,21 +279,12 @@
                 </button>
 
                 <button
-                  v-if="table.status === 'occupied' || table.status === 'qr-waiting'"
+                  v-if="table.status === 'occupied' || table.status === 'qr-waiting' || table.status === 'dining'"
                   @click="openCloseOrderModal(table)"
                   class="dashboard-action-btn dashboard-success"
                   title="Закрыть счет"
                 >
                   <i class="bi bi-check-circle"></i>
-                </button>
-
-                <button
-                  v-if="table.status === 'cleaning'"
-                  @click="closeTable(table)"
-                  class="dashboard-action-btn dashboard-finish-cleaning"
-                  title="Закрыть столик"
-                >
-                  <i class="bi bi-check2-all"></i>
                 </button>
               </div>
             </div>
@@ -396,7 +405,7 @@ interface Table {
   created_at: string
   updated_at: string
   // Дополнительные поля для UI
-  status: 'free' | 'occupied' | 'ready' | 'cleaning' | 'qr-waiting'
+  status: 'free' | 'occupied' | 'ready' | 'dining' | 'qr-waiting'
   orderTime: Date | null
   orderAmount: number
   hasQrOrder?: boolean
@@ -575,9 +584,9 @@ const mapApiTableToTable = (apiTable: import('@/types/api').Table & { current_or
   if (apiTable.is_occupied && apiTable.current_order_id) {
     status = 'occupied'
   }
-  // Если столик занят, но нет активного заказа, возможно он на уборке
+  // Если столик занят, но нет активного заказа, возможно гости доедают
   else if (apiTable.is_occupied && !apiTable.current_order_id) {
-    status = 'cleaning'
+    status = 'dining'
   }
   // Если есть заказ, но столик не помечен как занятый, это может быть QR заказ
   else if (!apiTable.is_occupied && apiTable.current_order_id) {
@@ -791,8 +800,11 @@ const loadOrdersData = async () => {
         // Обновляем статус на основе статуса заказа
         if (order.status === 'ready') {
           table.status = 'ready'
-        } else if (order.status === 'served' || order.payment_status === 'paid') {
-          // Если заказ подан или оплачен, столик должен быть свободным
+        } else if (order.status === 'served') {
+          // Если заказ подан, столик переходит в статус "доедают"
+          table.status = 'dining'
+        } else if (order.payment_status === 'paid') {
+          // Только если заказ оплачен, столик освобождается
           table.status = 'free'
           table.current_order_id = null
           table.orderTime = null
@@ -1022,7 +1034,7 @@ const filtersWithCounts = computed(() => {
     { key: 'occupied', label: 'Занятые', icon: 'bi-people-fill', count: currentZoneTables.filter(t => t.status === 'occupied').length },
     { key: 'qr-waiting', label: 'QR заказы', icon: 'bi-qr-code-scan', count: currentZoneTables.filter(t => t.status === 'qr-waiting').length },
     { key: 'ready', label: 'Готовые', icon: 'bi-bell-fill', count: currentZoneTables.filter(t => t.status === 'ready').length },
-    { key: 'cleaning', label: 'Уборка', icon: 'bi-arrow-clockwise', count: currentZoneTables.filter(t => t.status === 'cleaning').length }
+    { key: 'dining', label: 'Доедают', icon: 'bi-cup-hot', count: currentZoneTables.filter(t => t.status === 'dining').length }
   ]
 })
 
@@ -1089,7 +1101,7 @@ const zoneStats = computed(() => {
     occupied: currentZoneTables.filter(t => t.status === 'occupied').length,
     qrWaiting: currentZoneTables.filter(t => t.status === 'qr-waiting').length,
     ready: currentZoneTables.filter(t => t.status === 'ready').length,
-    cleaning: currentZoneTables.filter(t => t.status === 'cleaning').length
+    dining: currentZoneTables.filter(t => t.status === 'dining').length
   }
 })
 
@@ -1122,7 +1134,7 @@ const getTableIcon = (status: string) => {
     free: 'bi-check-circle-fill',
     occupied: 'bi-people-fill',
     ready: 'bi-bell-fill',
-    cleaning: 'bi-arrow-clockwise',
+    dining: 'bi-cup-hot',
     'qr-waiting': 'bi-qr-code-scan'
   }
   return icons[status as keyof typeof icons] || 'bi-question-circle'
@@ -1339,18 +1351,110 @@ const loadDishCategories = async (order: Order | null) => {
   }
 }
 
-const serveOrder = (table: Table) => {
+const serveOrder = async (table: Table) => {
   console.log('Подать заказ столика:', table.number)
-  // Здесь будет логика подачи заказа
-  table.status = 'cleaning'
-  playNotificationSound()
+
+  if (!table.current_order_id) {
+    console.warn('Нет активного заказа для подачи у столика', table.number)
+    return
+  }
+
+  try {
+    // Обновляем статус заказа через API
+    await apiService.updateOrderStatus(table.current_order_id, 'served')
+
+    // Обновляем статус столика для перехода в режим "доедают"
+    // (столик занят, но заказ уже подан)
+    await apiService.updateTableStatus(table.id, true)
+
+    // Локально обновляем статус столика
+    table.status = 'dining'
+    // НЕ очищаем current_order_id - гости могут сделать дополнительный заказ
+
+    // Показываем уведомление об успешной подаче
+    notificationStore.addNotification({
+      type: 'success',
+      title: 'Заказ подан',
+      message: `Заказ столика ${table.number} подан гостям`,
+      read: false,
+      sound: true
+    })
+
+    playNotificationSound()
+
+    // Не обновляем данные столиков автоматически, чтобы не перезаписать статус
+    // await loadOrdersData()
+
+  } catch (error) {
+    console.error('Ошибка подачи заказа:', error)
+    handleApiError(error, 'подачи заказа')
+  }
 }
 
-const confirmQrOrder = (table: Table) => {
+const freeTable = async (table: Table) => {
+  console.log('Освобождение столика:', table.number)
+
+  try {
+    // Обновляем статус столика на сервере (освобождаем)
+    await apiService.updateTableStatus(table.id, false)
+
+    // Локально обновляем статус столика
+    table.status = 'free'
+    table.is_occupied = false
+    table.current_order_id = null
+    table.orderTime = null
+    table.orderAmount = 0
+
+    // Показываем уведомление об успешном освобождении
+    notificationStore.addNotification({
+      type: 'success',
+      title: 'Столик освобожден',
+      message: `Столик ${table.number} освобожден и готов к приему новых гостей`,
+      read: false,
+      sound: true
+    })
+
+    playNotificationSound()
+
+  } catch (error) {
+    console.error('Ошибка освобождения столика:', error)
+    handleApiError(error, 'освобождения столика')
+  }
+}
+
+const confirmQrOrder = async (table: Table) => {
   console.log('Подтвердить QR заказ столика:', table.number)
-  // Здесь будет логика подтверждения QR заказа
-  table.status = 'occupied'
-  playNotificationSound()
+
+  if (!table.current_order_id) {
+    console.warn('Нет активного QR заказа для подтверждения у столика', table.number)
+    return
+  }
+
+  try {
+    // Обновляем статус заказа через API (подтверждаем QR заказ)
+    await apiService.updateOrderStatus(table.current_order_id, 'confirmed')
+
+    // Локально обновляем статус столика
+    table.status = 'occupied'
+
+    // Показываем уведомление об успешном подтверждении
+    notificationStore.addNotification({
+      type: 'success',
+      title: 'QR заказ подтвержден',
+      message: `QR заказ столика ${table.number} подтвержден официантом`,
+      read: false,
+      sound: true
+    })
+
+    playNotificationSound()
+
+    // Не обновляем данные столиков автоматически, чтобы не перезаписать статус
+    // await loadOrdersData()
+
+  } catch (error) {
+    console.error('Ошибка подтверждения QR заказа:', error)
+    handleApiError(error, 'подтверждения QR заказа')
+  }
 }
 
 const viewQrOrder = async (table: Table) => {
@@ -1583,6 +1687,12 @@ const onProcessOrderClosure = async (data: {
       sound: true
     })
 
+    // Находим столик и освобождаем его
+    const table = tables.value.find(t => t.number === closeOrderData.value?.tableNumber)
+    if (table) {
+      await freeTable(table)
+    }
+
     // Закрываем модальное окно
     closeCloseOrderModal()
 
@@ -1664,14 +1774,6 @@ const loadDishCategoriesForCloseOrder = async (orderItems: OrderItem[]) => {
 //     // Здесь будет логика печати счета
 //   }
 // }
-
-const closeTable = (table: Table) => {
-  console.log('Закрыть столик:', table.number)
-  // Здесь будет логика закрытия столика
-  table.status = 'free'
-  table.orderTime = null
-  table.orderAmount = 0
-}
 
 const createNewOrder = () => {
   router.push({ path: '/create-order' })

@@ -505,11 +505,11 @@
     @include variables.qres-pulse-animation(var(--qres-warning));
   }
 
-  .dashboard-table-status-cleaning & {
-    background: linear-gradient(45deg, #95a5a6, #bdc3c7);
+  .dashboard-table-status-dining & {
+    background: linear-gradient(45deg, #e67e22, #d35400);
 
     i {
-      animation: qres-spin 2s linear infinite;
+      animation: qres-gentle-pulse 2s ease-in-out infinite;
     }
   }
 }
@@ -582,12 +582,12 @@
     animation: qres-gentle-pulse 2s ease-in-out infinite;
   }
 
-  .dashboard-cleaning-indicator {
+  .dashboard-dining-indicator {
     display: flex;
     align-items: center;
     justify-content: center;
     gap: 0.3rem;
-    color: var(--qres-gray-400);
+    color: var(--qres-orange);
     font-weight: 600;
     font-size: 0.85rem;
     text-align: center;
@@ -664,8 +664,8 @@
     background: linear-gradient(45deg, #8d4004, #a0522d);
   }
 
-  &.dashboard-finish-cleaning {
-    background: linear-gradient(45deg, #00b894, #00a085);
+  &.dashboard-finish-dining {
+    background: linear-gradient(45deg, #3498db, #2980b9);
   }
 }
 
@@ -706,11 +706,11 @@
   }
 }
 
-.dashboard-table-status-cleaning {
-  border-color: rgba(149, 165, 166, 0.3);
+.dashboard-table-status-dining {
+  border-color: rgba(230, 126, 34, 0.3);
 
   &:hover {
-    border-color: rgba(149, 165, 166, 0.5);
+    border-color: rgba(230, 126, 34, 0.5);
   }
 }
 

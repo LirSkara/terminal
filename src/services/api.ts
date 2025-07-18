@@ -36,7 +36,11 @@ import type {
   UpdatePaymentMethodRequest,
   CategoriesResponse,
   DishesResponse,
-  DishVariationsResponse
+  DishVariationsResponse,
+  EditableOrderResponse,
+  AddOrderItemsRequest,
+  UpdateOrderItemRequest,
+  CreateOrderItemRequest
 } from '@/types/api'
 
 class ApiService {
@@ -360,10 +364,7 @@ class ApiService {
     await this.api.post(`/orders/${orderId}/items/`, item)
   }
 
-  async updateOrderItem(orderId: number, itemId: number, data: {
-    quantity?: number
-    comment?: string
-  }): Promise<void> {
+  async updateOrderItem(orderId: number, itemId: number, data: UpdateOrderItemRequest): Promise<void> {
     await this.api.patch(`/orders/${orderId}/items/${itemId}`, data)
   }
 
@@ -373,6 +374,66 @@ class ApiService {
 
   async deleteOrderItem(orderId: number, itemId: number): Promise<void> {
     await this.api.delete(`/orders/${orderId}/items/${itemId}`)
+  }
+
+  // === РЕДАКТИРОВАНИЕ ЗАКАЗОВ (новая система) ===
+
+  async getOrderForEdit(orderId: number): Promise<EditableOrderResponse> {
+    const response = await this.api.get<EditableOrderResponse>(`/orders/${orderId}/edit`)
+    return response.data
+  }
+
+  async getActiveOrderByTable(tableId: number): Promise<Order | null> {
+    console.log(`🔍 Ищем активные заказы для столика ${tableId}...`)
+
+    try {
+      // Пробуем специальный endpoint для активных заказов по столику
+      console.log(`📡 Пробуем специальный endpoint: /orders/active/table/${tableId}`)
+      const response = await this.api.get<Order[]>(`/orders/active/table/${tableId}`)
+      console.log(`✅ Специальный endpoint вернул данные:`, response.data)
+      return response.data.length > 0 ? response.data[0] : null
+    } catch (error) {
+      console.log(`❌ Специальный endpoint не сработал, пробуем резервный метод`)
+
+      // Если специальный endpoint не работает, используем общий список заказов
+      if (error && typeof error === 'object' && 'response' in error) {
+        const axiosError = error as { response: { status: number } }
+        if (axiosError.response.status === 404) {
+          // Пробуем найти активный заказ через общий API
+          try {
+            console.log(`📡 Загружаем все заказы через /orders/`)
+            const allOrders = await this.getOrders()
+            console.log(`📋 Получено ${allOrders.length} заказов, ищем для столика ${tableId}`)
+
+            const activeOrder = allOrders.find(order => {
+              const matches = order.table_id === tableId &&
+                            (order.status === 'pending' || order.status === 'in_progress')
+              if (order.table_id === tableId) {
+                console.log(`🔍 Заказ #${order.id} для столика ${tableId}: статус "${order.status}" (активный: ${matches})`)
+              }
+              return matches
+            })
+
+            if (activeOrder) {
+              console.log(`✅ Найден активный заказ через резервный метод:`, activeOrder)
+            } else {
+              console.log(`❌ Активных заказов для столика ${tableId} не найдено через резервный метод`)
+            }
+
+            return activeOrder || null
+          } catch (fallbackError) {
+            console.warn('❌ Не удалось получить список всех заказов:', fallbackError)
+            return null
+          }
+        }
+      }
+      throw error
+    }
+  }
+
+  async addItemsToOrder(orderId: number, items: CreateOrderItemRequest[]): Promise<void> {
+    const requestData: AddOrderItemsRequest = { items }
+    await this.api.post(`/kitchen/orders/${orderId}/items`, requestData)
   }
 
   async getOrderStats(): Promise<OrderStats> {

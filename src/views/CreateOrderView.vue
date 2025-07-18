@@ -6,8 +6,8 @@
         <div class="row align-items-center">
           <div class="col-md-8">
             <h1 class="order-title">
-              <i class="bi bi-plus-circle-fill me-3"></i>
-              Создание заказа
+              <i :class="editMode ? 'bi bi-pencil-square me-3' : 'bi bi-plus-circle-fill me-3'"></i>
+              {{ editMode ? `Редактирование заказа #${existingOrder?.id}` : 'Создание заказа' }}
               <span
                 class="order-info-item clickable ms-3"
                 @click="openOrderTypeModal"
@@ -20,7 +20,7 @@
               >
                 <i :class="getOrderTypeIcon()" class="me-1"></i>
                 {{ getOrderLocationText() }}
-                <i class="bi bi-pencil-square ms-1"></i>
+                <i v-if="!editMode" class="bi bi-pencil-square ms-1"></i>
               </span>
             </h1>
             <p class="order-subtitle">
@@ -125,8 +125,8 @@
             <div class="cart-section">
               <div class="cart-header">
                 <h3 class="cart-title">
-                  <i class="bi bi-cart3"></i>
-                  Заказ
+                  <i :class="editMode ? 'bi bi-plus-circle' : 'bi bi-cart3'"></i>
+                  {{ editMode ? `Дозаказ к #${existingOrder?.id}` : 'Заказ' }}
                   <span class="cart-count" v-if="cartItems.length > 0">({{ cartItems.length }})</span>
                 </h3>
                 <button
@@ -141,9 +141,9 @@
 
               <!-- Пустая корзина -->
               <div v-if="cartItems.length === 0" class="empty-cart">
-                <i class="bi bi-cart-x"></i>
-                <p>Корзина пуста</p>
-                <span>Добавьте блюда из меню</span>
+                <i :class="editMode ? 'bi bi-plus-circle-dotted' : 'bi bi-cart-x'"></i>
+                <p>{{ editMode ? 'Нет новых позиций' : 'Корзина пуста' }}</p>
+                <span>{{ editMode ? 'Добавьте дополнительные блюда к заказу' : 'Добавьте блюда из меню' }}</span>
               </div>
 
               <!-- Товары в корзине -->
@@ -187,11 +187,11 @@
                 <!-- Кнопки действий -->
                 <div class="cart-actions">
                   <button
-                    @click="createOrder"
+                    @click="editMode ? addItemsToOrder() : createOrder()"
                     class="create-order-btn"
                   >
-                    <i class="bi bi-check-circle-fill"></i>
-                    Оформить заказ ({{ totalPrice }}₽)
+                    <i :class="editMode ? 'bi bi-plus-circle-fill' : 'bi bi-check-circle-fill'"></i>
+                    {{ editMode ? `Добавить позиции (${totalPrice}₽)` : `Оформить заказ (${totalPrice}₽)` }}
                   </button>
                 </div>
               </div>
@@ -351,6 +351,11 @@ const activeCategory = ref('')
 const selectedTable = ref<string | null>(null)
 const cartItems = ref<CartItem[]>([])
 const selectedOrderType = ref<string | null>(null)
+
+// Режим редактирования заказа
+const editMode = ref(false)
+const editingOrderId = ref<number | null>(null)
+const existingOrder = ref<import('@/types/api').Order | null>(null)
 
 // Состояние загрузки
 const isLoadingZones = ref(false)
@@ -563,6 +568,11 @@ const getOrderTypeIcon = () => {
 }
 
 const openOrderTypeModal = () => {
+  // В режиме редактирования не открываем модальное окно выбора типа заказа
+  if (editMode.value) {
+    return
+  }
+
   showOrderTypeModal.value = true
   // Устанавливаем первую зону как активную по умолчанию
   if (availableZones.value.length > 0) {
@@ -1064,6 +1074,29 @@ const createOrder = async () => {
             errorMessage += `: ${data.message}`
           }
         }
+      } else if (axiosError.response.status === 500) {
+        // Специальная обработка для ошибки кухонной системы
+        const data = axiosError.response.data as Record<string, unknown>
+        if (data && typeof data === 'object' && data.message &&
+            (data.message as string).includes('IN_PROGRESS')) {
+          errorMessage = 'Для этого столика уже есть заказ в работе. Обновите страницу (F5) для автоматического перехода в режим дозаказа.'
+
+          // Показываем дополнительное уведомление с инструкцией
+          setTimeout(() => {
+            notificationStore.addNotification({
+              type: 'info',
+              title: 'Режим дозаказа',
+              message: 'Нажмите F5 для обновления страницы и автоматического перехода в режим дозаказа',
+              read: false,
+              sound: false
+            })
+          }, 2000)
+        } else {
+          errorMessage = 'Ошибка сервера при создании заказа'
+          if (data.message) {
+            errorMessage += `: ${data.message}`
+          }
+        }
       } else if (axiosError.response.status === 404) {
         errorMessage = 'Столик или блюдо не найдены'
       } else if (axiosError.response.status === 403) {
@@ -1082,6 +1115,163 @@ const createOrder = async () => {
       read: false,
       sound: true
     })
+  }
+}
+
+// Функция для добавления позиций к существующему заказу
+const addItemsToOrder = async () => {
+  if (cartItems.value.length === 0 || !editingOrderId.value) return
+
+  try {
+    // Показываем индикатор загрузки
+    notificationStore.addNotification({
+      type: 'info',
+      title: 'Добавление позиций',
+      message: 'Добавляем новые позиции к заказу...',
+      read: false,
+      sound: false
+    })
+
+    // Формируем данные для добавления позиций
+    const items: import('@/types/api').CreateOrderItemRequest[] = cartItems.value.map(item => {
+      const apiItem: import('@/types/api').CreateOrderItemRequest = {
+        dish_id: parseInt(item.dishId),
+        quantity: item.quantity,
+        comment: item.selectedVariations ? formatVariations(item.selectedVariations) : undefined
+      }
+
+      // Добавляем ID вариации если выбрана
+      if (item.selectedVariations && Object.keys(item.selectedVariations).length > 0) {
+        const firstVariation = Object.values(item.selectedVariations)[0]
+        if (firstVariation && firstVariation.id) {
+          apiItem.dish_variation_id = parseInt(firstVariation.id)
+        }
+      }
+
+      return apiItem
+    })
+
+    console.log('Добавляем позиции к заказу:', editingOrderId.value, items)
+
+    // Отправляем запрос на добавление позиций
+    await apiService.addItemsToOrder(editingOrderId.value, items)
+
+    console.log('Позиции успешно добавлены к заказу')
+
+    // Показываем уведомление об успехе
+    notificationStore.addNotification({
+      type: 'success',
+      title: 'Позиции добавлены',
+      message: `Добавлено ${cartItems.value.length} позиций к заказу #${editingOrderId.value}`,
+      read: false,
+      sound: true
+    })
+
+    // Очищаем корзину
+    cartItems.value = []
+
+    // Возвращаемся на главную страницу
+    router.push({ name: 'dashboard' })
+
+  } catch (error) {
+    console.error('Ошибка добавления позиций к заказу:', error)
+
+    let errorMessage = 'Не удалось добавить позиции к заказу'
+
+    if (error && typeof error === 'object' && 'response' in error) {
+      const axiosError = error as { response: { status: number; data?: unknown } }
+
+      if (axiosError.response.status === 400) {
+        errorMessage = 'Ошибка валидации данных позиций'
+
+        const data = axiosError.response.data as Record<string, unknown>
+        if (data && typeof data === 'object' && data.detail) {
+          errorMessage += `: ${data.detail}`
+        }
+      } else if (axiosError.response.status === 404) {
+        errorMessage = 'Заказ не найден или недоступен для редактирования'
+      } else if (axiosError.response.status === 403) {
+        errorMessage = 'Недостаточно прав для редактирования заказа'
+      } else {
+        errorMessage = `Ошибка сервера: ${axiosError.response.status}`
+      }
+    } else if (error instanceof Error) {
+      errorMessage = error.message
+    }
+
+    notificationStore.addNotification({
+      type: 'error',
+      title: 'Ошибка добавления позиций',
+      message: errorMessage,
+      read: false,
+      sound: true
+    })
+  }
+}
+
+// Функция для загрузки существующего заказа для редактирования
+const loadOrderForEdit = async (orderId: number) => {
+  try {
+    console.log(`Загружаем заказ ${orderId} для редактирования...`)
+
+    const orderResponse = await apiService.getOrderForEdit(orderId)
+    existingOrder.value = orderResponse.order
+
+    console.log('Заказ загружен для редактирования:', existingOrder.value)
+
+    // Устанавливаем данные заказа
+    selectedTable.value = existingOrder.value.table_id.toString()
+
+    // Преобразуем API тип заказа в UI формат
+    if (existingOrder.value.order_type === 'dine_in') {
+      selectedOrderType.value = 'table'
+    } else if (existingOrder.value.order_type === 'takeaway') {
+      selectedOrderType.value = 'takeaway'
+    } else if (existingOrder.value.order_type === 'delivery') {
+      selectedOrderType.value = 'delivery'
+    }
+
+    editMode.value = true
+    editingOrderId.value = orderId
+
+    // Показываем уведомление
+    notificationStore.addNotification({
+      type: 'info',
+      title: 'Режим редактирования',
+      message: `Загружен заказ #${orderId}. Добавьте новые позиции.`,
+      read: false,
+      sound: false
+    })
+
+  } catch (error) {
+    console.error('Ошибка загрузки заказа для редактирования:', error)
+
+    let errorMessage = 'Не удалось загрузить заказ для редактирования'
+
+    if (error && typeof error === 'object' && 'response' in error) {
+      const axiosError = error as { response: { status: number; data?: unknown } }
+
+      if (axiosError.response.status === 404) {
+        errorMessage = 'Заказ не найден'
+      } else if (axiosError.response.status === 403) {
+        errorMessage = 'Заказ недоступен для редактирования'
+      } else {
+        errorMessage = `Ошибка сервера: ${axiosError.response.status}`
+      }
+    } else if (error instanceof Error) {
+      errorMessage = error.message
+    }
+
+    notificationStore.addNotification({
+      type: 'error',
+      title: 'Ошибка загрузки заказа',
+      message: errorMessage,
+      read: false,
+      sound: true
+    })
+
+    // Возвращаемся на главную при ошибке
+    router.push({ name: 'dashboard' })
   }
 }
 
@@ -1666,11 +1856,59 @@ onMounted(async () => {
     activeCategory.value = combinedCategories.value[0].id
   }
 
-  // Получаем столик из роута если есть
+  // Получаем параметры из роута
   const tableParam = router.currentRoute.value.query.table as string
-  if (tableParam) {
+  const editOrderParam = router.currentRoute.value.query.editOrder as string
+
+  // Проверяем режим редактирования заказа
+  if (editOrderParam) {
+    const orderId = parseInt(editOrderParam)
+    if (!isNaN(orderId)) {
+      console.log(`Режим редактирования заказа: ${orderId}`)
+      await loadOrderForEdit(orderId)
+    } else {
+      console.warn('Неверный ID заказа для редактирования:', editOrderParam)
+      notificationStore.addNotification({
+        type: 'error',
+        title: 'Ошибка',
+        message: 'Неверный ID заказа для редактирования',
+        read: false,
+        sound: true
+      })
+      router.push({ name: 'dashboard' })
+    }
+  } else if (tableParam) {
     selectedTable.value = tableParam
     selectedOrderType.value = 'table' // Автоматически устанавливаем тип заказа "За столиком"
+
+    // Проверяем, есть ли активный заказ для этого столика
+    try {
+      const tableId = parseInt(tableParam)
+      if (!isNaN(tableId)) {
+        console.log(`Проверяем активные заказы для столика ${tableId}...`)
+        const activeOrder = await apiService.getActiveOrderByTable(tableId)
+
+        if (activeOrder) {
+          console.log(`✅ Найден активный заказ для столика ${tableId}:`, activeOrder)
+          console.log(`📋 Статус заказа: ${activeOrder.status}`)
+          console.log(`💰 Сумма заказа: ${activeOrder.total_price}`)
+          console.log(`📅 Создан: ${activeOrder.created_at}`)
+
+          // Если есть активный заказ, переводим в режим редактирования
+          if (activeOrder.status === 'in_progress' || activeOrder.status === 'pending') {
+            console.log(`🔄 Переводим в режим дозаказа для заказа #${activeOrder.id}`)
+            await loadOrderForEdit(activeOrder.id)
+          } else {
+            console.log(`ℹ️ Заказ #${activeOrder.id} имеет статус "${activeOrder.status}", создаем новый заказ`)
+          }
+        } else {
+          console.log(`❌ Активных заказов для столика ${tableId} не найдено, можно создавать новый`)
+        }
+      }
+    } catch (error) {
+      console.warn('Ошибка при проверке активных заказов для столика:', error)
+      // Продолжаем как обычно - создание нового заказа
+    }
   } else {
     // Если столик не выбран, сразу открываем модальное окно выбора типа заказа
     openOrderTypeModal()

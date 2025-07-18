@@ -137,7 +137,26 @@ export interface OrderItem {
   status: OrderItemStatus
   dish_name: string
   variation_name: string
+  // Новые поля для кухонной системы
+  department?: KitchenDepartment
+  preparation_started_at?: string
+  ready_at?: string
+  served_at?: string
+  estimated_preparation_time?: number
+  actual_preparation_time?: number
+  can_be_modified?: boolean
+  can_be_cancelled?: boolean
 }
+
+// === КУХОННЫЕ ЦЕХИ ===
+
+export type KitchenDepartment =
+  | 'bar'           // Бар (напитки)
+  | 'cold_kitchen'  // Холодный цех (салаты, закуски)
+  | 'hot_kitchen'   // Горячий цех (основные блюда)
+  | 'dessert'       // Кондитерский цех
+  | 'grill'         // Гриль
+  | 'bakery'        // Выпечка
 
 export interface Order {
   id: number
@@ -175,11 +194,10 @@ export type OrderType =
   | 'delivery'     // Доставка
 
 export type OrderItemStatus =
-  | 'new'          // Новая
-  | 'cooking'      // Готовится
-  | 'ready'        // Готова
-  | 'served'       // Подана
-  | 'cancelled'    // Отменена
+  | 'in_preparation'    // Готовится (статус по умолчанию при создании, сразу видно на кухне)
+  | 'ready'             // Готова к подаче (повар подтверждает готовность)
+  | 'served'            // Подана клиенту (официант подтверждает выдачу)
+  | 'cancelled'         // Отменена
 
 export type TableStatus =
   | 'free'         // Свободный
@@ -270,6 +288,27 @@ export interface UpdatePaymentStatusRequest {
 
 export interface UpdateTableStatusRequest {
   is_occupied: boolean
+}
+
+// === РЕДАКТИРОВАНИЕ ЗАКАЗОВ ===
+
+export interface AddOrderItemsRequest {
+  items: CreateOrderItemRequest[]
+}
+
+export interface EditableOrderResponse {
+  order: Order & {
+    can_be_modified: boolean
+    items: (OrderItem & {
+      can_be_modified: boolean
+      can_be_cancelled: boolean
+    })[]
+  }
+}
+
+export interface UpdateOrderItemRequest {
+  quantity?: number
+  comment?: string
 }
 
 // === API ОТВЕТЫ ===
