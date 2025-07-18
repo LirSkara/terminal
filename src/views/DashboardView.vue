@@ -1479,8 +1479,8 @@ const viewQrOrder = async (table: Table) => {
         return {
           id: item.id || 0,
           name: item.dish_name || 'Неизвестное блюдо',
-          unitPrice: Number(item.unit_price) || 0,
-          totalPrice: Number(item.total_price) || 0,
+          unitPrice: Number(item.price) || 0,
+          totalPrice: Number(item.total) || 0,
           quantity: item.quantity || 1,
           category: 'Загружается...', // Будем загружать асинхронно
           notes: item.comment || undefined
@@ -1536,16 +1536,16 @@ const viewOrder = async (table: Table) => {
       tableNumber: table.number,
       items: orderData.items?.map((item: ApiOrderItem) => {
         console.log('Обрабатываем элемент заказа:', item)
-        console.log('  unit_price:', item.unit_price, 'typeof:', typeof item.unit_price)
-        console.log('  total_price:', item.total_price, 'typeof:', typeof item.total_price)
-        console.log('  После Number(unit_price):', Number(item.unit_price))
-        console.log('  После Number(total_price):', Number(item.total_price))
+        console.log('  unit_price:', item.price, 'typeof:', typeof item.price)
+        console.log('  total_price:', item.total, 'typeof:', typeof item.total)
+        console.log('  После Number(unit_price):', Number(item.price))
+        console.log('  После Number(total_price):', Number(item.total))
 
         return {
           id: item.id || 0,
           name: item.dish_name || 'Неизвестное блюдо',
-          unitPrice: Number(item.unit_price) || 0,
-          totalPrice: Number(item.total_price) || 0,
+          unitPrice: Number(item.price) || 0,
+          totalPrice: Number(item.total) || 0,
           quantity: item.quantity || 1,
           category: 'Загружается...', // Будем загружать асинхронно
           notes: item.comment || undefined
@@ -1604,8 +1604,8 @@ const openCloseOrderModal = async (table: Table) => {
     const orderItems: OrderItem[] = orderData.items?.map((item: ApiOrderItem) => ({
       id: item.id || 0,
       name: item.dish_name || 'Неизвестное блюдо',
-      unitPrice: Number(item.unit_price) || 0,
-      totalPrice: Number(item.total_price) || 0,
+      unitPrice: Number(item.price) || 0,
+      totalPrice: Number(item.total) || 0,
       quantity: item.quantity || 1,
       category: 'Загружается...', // Будем загружать асинхронно
       notes: item.comment || undefined

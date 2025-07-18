@@ -129,14 +129,14 @@ export interface DishVariationsResponse {
 export interface OrderItem {
   id?: number
   dish_id: number
-  dish_variation_id: number
+  dish_variation_id: number | null
   quantity: number
-  unit_price: number
-  total_price: number
+  price: number         // Изменили с unit_price на price
+  total: number         // Изменили с total_price на total
   comment?: string
   status: OrderItemStatus
   dish_name: string
-  variation_name: string
+  variation_name?: string
   // Новые поля для кухонной системы
   department?: KitchenDepartment
   preparation_started_at?: string
