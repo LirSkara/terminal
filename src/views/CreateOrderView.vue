@@ -665,11 +665,11 @@ const handleDeliveryOrderConfirm = async (deliveryData?: { customerName: string;
     // Преобразуем UI тип заказа в API формат
     let apiOrderType: import('@/types/api').OrderType
     if (selectedOrderType.value === 'table') {
-      apiOrderType = 'dine_in'
+      apiOrderType = 'DINE_IN'
     } else if (selectedOrderType.value === 'takeaway') {
-      apiOrderType = 'takeaway'
+      apiOrderType = 'TAKEAWAY'
     } else if (selectedOrderType.value === 'delivery') {
-      apiOrderType = 'delivery'
+      apiOrderType = 'DELIVERY'
     } else {
       throw new Error('Неверный тип заказа')
     }
@@ -893,21 +893,7 @@ const getCategoryCount = (category: Category) => {
     return apiDishes.value[categoryId].length.toString()
   }
 
-  // Проверяем кэш если данных нет в памяти
-  try {
-    const cacheKey = `category_dishes_${categoryId}`
-    const cachedData = cacheService.get(cacheKey) as { dishes: ApiDish[] } | null
-
-    if (cachedData && cachedData.dishes) {
-      // Считаем только доступные блюда
-      const availableDishes = cachedData.dishes.filter((dish: ApiDish) => dish.is_available)
-      return availableDishes.length.toString()
-    }
-  } catch (error) {
-    console.warn(`Ошибка чтения кэша для категории ${categoryId}:`, error)
-  }
-
-  // Если блюда еще не загружены и нет в кэше, показываем "?"
+  // Если блюда еще не загружены (кэш отключен), показываем "?"
   return '?'
 }
 
@@ -948,11 +934,11 @@ const createOrder = async () => {
     // Преобразуем UI тип заказа в API формат
     let apiOrderType: import('@/types/api').OrderType
     if (selectedOrderType.value === 'table') {
-      apiOrderType = 'dine_in'
+      apiOrderType = 'DINE_IN'
     } else if (selectedOrderType.value === 'takeaway') {
-      apiOrderType = 'takeaway'
+      apiOrderType = 'TAKEAWAY'
     } else if (selectedOrderType.value === 'delivery') {
-      apiOrderType = 'delivery'
+      apiOrderType = 'DELIVERY'
     } else {
       throw new Error('Неверный тип заказа')
     }
@@ -1223,11 +1209,11 @@ const loadOrderForEdit = async (orderId: number) => {
     selectedTable.value = existingOrder.value.table_id.toString()
 
     // Преобразуем API тип заказа в UI формат
-    if (existingOrder.value.order_type === 'dine_in') {
+    if (existingOrder.value.order_type === 'DINE_IN') {
       selectedOrderType.value = 'table'
-    } else if (existingOrder.value.order_type === 'takeaway') {
+    } else if (existingOrder.value.order_type === 'TAKEAWAY') {
       selectedOrderType.value = 'takeaway'
-    } else if (existingOrder.value.order_type === 'delivery') {
+    } else if (existingOrder.value.order_type === 'DELIVERY') {
       selectedOrderType.value = 'delivery'
     }
 
@@ -1277,75 +1263,14 @@ const loadOrderForEdit = async (orderId: number) => {
 
 // Функция для проверки актуальности кэша
 const checkIfCacheNeedsUpdate = () => {
-  try {
-    // Проверяем, есть ли основные данные в кэше
-    const categoriesCache = cacheService.get('categories')
-    const locationsCache = cacheService.get('locations')
-    const tablesCache = cacheService.get('tables')
-
-    if (!categoriesCache) {
-      console.log('Кэш категорий отсутствует')
-      return true
-    }
-
-    if (!locationsCache || !tablesCache) {
-      console.log('Кэш зон или столиков отсутствует')
-      return true
-    }
-
-    // Проверяем время последнего обновления (если есть поддержка TTL)
-    const cacheInfo = cacheService.get('_cache_timestamp')
-    if (cacheInfo) {
-      const lastUpdate = new Date(cacheInfo as string)
-      const now = new Date()
-      const minutesSinceUpdate = (now.getTime() - lastUpdate.getTime()) / (1000 * 60)
-
-      // Обновляем кэш если прошло больше 60 минут
-      if (minutesSinceUpdate > 60) {
-        console.log(`Кэш меню устарел: ${minutesSinceUpdate.toFixed(1)} минут назад`)
-        return true
-      }
-    }
-
-    // Проверяем время последнего обновления зон и столиков (используем dashboard timestamp)
-    const dashboardCacheInfo = cacheService.get('_dashboard_cache_timestamp')
-    if (dashboardCacheInfo) {
-      const lastUpdate = new Date(dashboardCacheInfo as string)
-      const now = new Date()
-      const minutesSinceUpdate = (now.getTime() - lastUpdate.getTime()) / (1000 * 60)
-
-      // Проверяем, не устарели ли зоны и столики (30 минут как в DashboardView)
-      if (minutesSinceUpdate > 30) {
-        console.log(`Кэш зон и столиков устарел: ${minutesSinceUpdate.toFixed(1)} минут назад`)
-        return true
-      }
-    }
-
-    // Проверяем, есть ли блюда для всех категорий в кэше
-    if (apiCategories.value.length > 0) {
-      const missingDishesCategories = apiCategories.value.filter(category => {
-        const cacheKey = `category_dishes_${category.id}`
-        return !cacheService.get(cacheKey)
-      })
-
-      if (missingDishesCategories.length > 0) {
-        console.log(`Отсутствуют блюда для ${missingDishesCategories.length} категорий`)
-        return true
-      }
-    }
-
-    console.log('Кэш актуален')
-    return false
-
-  } catch (error) {
-    console.warn('Ошибка проверки кэша:', error)
-    return true // При ошибке лучше обновить
-  }
+  // Кэш полностью отключен - всегда требуется обновление
+  console.log('Кэш отключен - всегда загружаем данные из API')
+  return true
 }
 
 // Функция для полной загрузки всех данных при первом входе
 const loadAllDataInitial = async () => {
-  console.log('Начинаем полную загрузку всех данных...')
+  console.log('Начинаем полную загрузку всех данных (кэш отключен)...')
 
   try {
     // Показываем уведомление о начале загрузки
@@ -1388,14 +1313,13 @@ const loadAllDataInitial = async () => {
 
     console.log('Полная загрузка данных завершена')
 
-    // Сохраняем timestamp успешной загрузки (дольше чем данные для надежности)
-    cacheService.set('_cache_timestamp', new Date().toISOString(), { ttl: 120 * 60 * 1000 }) // 120 минут
+    // НЕ сохраняем timestamp кэша - кэш отключен
 
     // Показываем уведомление об успешной загрузке
     notificationStore.addNotification({
       type: 'success',
       title: 'Данные загружены',
-      message: 'Все данные меню успешно загружены и кэшированы',
+      message: 'Все данные меню успешно загружены из API',
       read: false,
       sound: false
     })
@@ -1415,107 +1339,21 @@ const loadAllDataInitial = async () => {
 
 // Функция для восстановления данных из кэша при инициализации
 const restoreFromCache = () => {
-  console.log('Восстанавливаем данные из кэша...')
+  console.log('НЕ восстанавливаем данные из кэша - кэш для категорий и блюд отключен')
 
-  // Восстанавливаем категории
-  try {
-    const categoriesCache = cacheService.get('categories') as { categories: import('@/types/api').Category[] } | null
-    if (categoriesCache && categoriesCache.categories) {
-      const activeCategories = categoriesCache.categories
-        .filter(category => category.is_active)
-        .sort((a, b) => a.sort_order - b.sort_order || a.name.localeCompare(b.name))
+  // НЕ восстанавливаем категории из кэша - всегда загружаем из API
+  console.log('Категории не восстанавливаются из кэша - будут загружены из API')
 
-      apiCategories.value = activeCategories
-      console.log(`Восстановлено ${activeCategories.length} категорий из кэша`)
-    }
-  } catch (error) {
-    console.warn('Ошибка восстановления категорий из кэша:', error)
-  }
+  // НЕ восстанавливаем блюда из кэша - всегда загружаем из API
+  console.log('Блюда не восстанавливаются из кэша - будут загружены из API')
 
-  // Восстанавливаем блюда и вариации для каждой категории
-  for (const category of apiCategories.value) {
-    try {
-      // Восстанавливаем блюда категории
-      const cacheKey = `category_dishes_${category.id}`
-      const cachedData = cacheService.get(cacheKey) as { dishes: ApiDish[] } | null
+  // НЕ восстанавливаем зоны из кэша - всегда загружаем из API
+  console.log('Зоны не восстанавливаются из кэша - будут загружены из API')
 
-      if (cachedData && cachedData.dishes) {
-        const activeDishes = cachedData.dishes
-          .filter((dish: ApiDish) => dish.is_available)
-          .sort((a: ApiDish, b: ApiDish) => a.sort_order - b.sort_order || a.name.localeCompare(b.name))
+  // НЕ восстанавливаем столики из кэша - всегда загружаем из API
+  console.log('Столики не восстанавливаются из кэша - будут загружены из API')
 
-        apiDishes.value[category.id] = activeDishes
-        console.log(`Восстановлено ${activeDishes.length} блюд для категории ${category.id}`)
-
-        // Восстанавливаем вариации для каждого блюда
-        for (const dish of activeDishes) {
-          try {
-            const variationsCacheKey = `dish_variations_${dish.id}`
-            const cachedVariations = cacheService.get(variationsCacheKey) as { variations: ApiDishVariation[] } | null
-
-            if (cachedVariations && cachedVariations.variations) {
-              const activeVariations = cachedVariations.variations
-                .filter((variation: ApiDishVariation) => variation.is_available)
-                .sort((a: ApiDishVariation, b: ApiDishVariation) => a.sort_order - b.sort_order || a.name.localeCompare(b.name))
-
-              dishVariations.value[dish.id] = activeVariations
-            }
-          } catch (error) {
-            console.warn(`Ошибка восстановления вариаций для блюда ${dish.id}:`, error)
-          }
-        }
-      }
-    } catch (error) {
-      console.warn(`Ошибка восстановления блюд для категории ${category.id}:`, error)
-    }
-  }
-
-  // Восстанавливаем зоны (используем те же ключи что и в DashboardView)
-  try {
-    const locationsCache = cacheService.get('locations') as { locations: Location[] } | null
-    if (locationsCache && locationsCache.locations) {
-      const activeLocations = locationsCache.locations
-        .filter(location => location.is_active)
-        .sort((a, b) => a.name.localeCompare(b.name))
-
-      const apiZones = activeLocations.map(mapLocationToZone)
-      zones.value = apiZones
-
-      console.log(`Восстановлено ${apiZones.length} зон из кэша`)
-    }
-  } catch (error) {
-    console.warn('Ошибка восстановления зон из кэша:', error)
-  }
-
-  // Восстанавливаем столики (используем те же ключи что и в DashboardView)
-  try {
-    const tablesCache = cacheService.get('tables') as { tables: (import('@/types/api').Table & { current_order_id?: number | null })[] } | null
-    if (tablesCache && tablesCache.tables && zones.value.length > 0) {
-      // Получаем активные зоны для фильтрации
-      const activeLocationIds = zones.value.map(zone => parseInt(zone.id))
-
-      const activeTables = tablesCache.tables.filter(table =>
-        table.is_active && activeLocationIds.includes(table.location_id)
-      )
-
-      // Создаем список локаций для маппинга
-      const locationsForMapping = zones.value.map(zone => ({
-        id: parseInt(zone.id),
-        name: zone.name,
-        color: zone.color,
-        is_active: true
-      })) as Location[]
-
-      const uiTables = activeTables.map(table => mapApiTableToUITable(table, locationsForMapping))
-      availableTables.value = uiTables
-
-      console.log(`Восстановлено ${uiTables.length} столиков из кэша`)
-    }
-  } catch (error) {
-    console.warn('Ошибка восстановления столиков из кэша:', error)
-  }
-
-  console.log('Восстановление из кэша завершено')
+  console.log('Все данные будут загружены из API (кэш полностью отключен)')
 }
 
 // Функция для преобразования API Location в Zone
@@ -1544,7 +1382,7 @@ const mapApiTableToUITable = (apiTable: import('@/types/api').Table & { current_
 const loadZones = async () => {
   try {
     isLoadingZones.value = true
-    console.log('Загрузка зон через API...')
+    console.log('Загрузка зон через API (кэш отключен)...')
 
     const response = await apiService.getLocations()
     console.log('Получены локации:', response)
@@ -1559,8 +1397,7 @@ const loadZones = async () => {
       locationsArray = []
     }
 
-    // Кэшируем данные локаций (используем те же ключи что и в DashboardView)
-    cacheService.set('locations', { locations: locationsArray }, { ttl: 30 * 60 * 1000 }) // 30 минут
+    // НЕ кэшируем данные локаций - всегда загружаем свежие данные
 
     // Фильтруем только активные локации
     const filteredLocations = locationsArray
@@ -1576,14 +1413,14 @@ const loadZones = async () => {
     // Устанавливаем зоны из API
     zones.value = apiZones
 
-    console.log('Зоны загружены:', zones.value)
+    console.log('Зоны загружены из API:', zones.value)
 
     // Показываем уведомление об успешной загрузке
     if (apiZones.length > 0) {
       notificationStore.addNotification({
         type: 'success',
         title: 'Зоны загружены',
-        message: `Загружено ${apiZones.length} зон ресторана`,
+        message: `Загружено ${apiZones.length} зон ресторана из API`,
         read: false,
         sound: false
       })
@@ -1632,8 +1469,7 @@ const loadTables = async () => {
       tablesArray = []
     }
 
-    // Кэшируем данные столиков (используем те же ключи что и в DashboardView)
-    cacheService.set('tables', { tables: tablesArray }, { ttl: 30 * 60 * 1000 }) // 30 минут
+    // НЕ кэшируем данные столиков - всегда загружаем свежие данные
 
     // Получаем только активные локации для фильтрации
     const activeLocationIds = locationsArray
@@ -1653,14 +1489,14 @@ const loadTables = async () => {
     // Устанавливаем столики
     availableTables.value = uiTables
 
-    console.log('Столики загружены:', availableTables.value)
+    console.log('Столики загружены из API:', availableTables.value)
 
     // Показываем уведомление об успешной загрузке
     if (uiTables.length > 0) {
       notificationStore.addNotification({
         type: 'success',
         title: 'Столики загружены',
-        message: `Загружено ${uiTables.length} столиков`,
+        message: `Загружено ${uiTables.length} столиков из API`,
         read: false,
         sound: false
       })
@@ -1679,10 +1515,12 @@ const loadTables = async () => {
 const loadCategories = async () => {
   try {
     isLoadingCategories.value = true
-    console.log('Загрузка категорий через API...')
+    console.log('Загрузка категорий через API (кэш отключен)...')
 
     const response = await apiService.getCategories()
     console.log('Получены категории:', response)
+
+    // НЕ кэшируем данные категорий - всегда загружаем свежие данные
 
     // Фильтруем только активные категории и сортируем по sort_order
     const activeCategories = response.categories
@@ -1699,7 +1537,7 @@ const loadCategories = async () => {
       notificationStore.addNotification({
         type: 'success',
         title: 'Категории загружены',
-        message: `Загружено ${activeCategories.length} категорий меню`,
+        message: `Загружено ${activeCategories.length} категорий меню из API`,
         read: false,
         sound: false
       })
@@ -1740,10 +1578,12 @@ const loadDishesForCategory = async (categoryId: number) => {
   try {
     loadingDishesForCategories.value.add(categoryId)
     isLoadingDishes.value = true
-    console.log(`Загрузка блюд для категории ${categoryId} через API...`)
+    console.log(`Загрузка блюд для категории ${categoryId} через API (кэш отключен)...`)
 
     const response = await apiService.getCategoryDishes(categoryId)
     console.log('Получены блюда:', response)
+
+    // НЕ кэшируем данные блюд - всегда загружаем свежие данные
 
     // Фильтруем только активные блюда и сортируем по sort_order
     const activeDishes = response.dishes
@@ -1760,6 +1600,9 @@ const loadDishesForCategory = async (categoryId: number) => {
     await Promise.all(activeDishes.map(async (dish) => {
       try {
         const variationsResponse = await apiService.getDishVariations(dish.id)
+
+        // НЕ кэшируем данные вариаций - всегда загружаем свежие данные
+
         // Фильтруем только доступные вариации и сортируем
         const activeVariations = variationsResponse.variations
           .filter(variation => variation.is_available)
@@ -1831,27 +1674,30 @@ onMounted(async () => {
   updateTime()
   timeInterval = setInterval(updateTime, 1000) as unknown as number
 
-  // Сначала восстанавливаем данные из кэша для быстрого отображения
-  restoreFromCache()
+  // ПРИНУДИТЕЛЬНО очищаем ВЕСЬ кэш перед загрузкой
+  console.log('Принудительная очистка всего кэша...')
+  cacheService.remove('categories')
+  cacheService.remove('locations')
+  cacheService.remove('tables')
+  cacheService.remove('_cache_timestamp')
+  cacheService.remove('_dashboard_cache_timestamp')
 
-  // Загружаем зоны и столики (они не так критичны для основного интерфейса)
-  const zonesAndTablesPromise = Promise.all([
+  // НЕ восстанавливаем данные из кэша - кэш полностью отключен
+  console.log('Кэш отключен - все данные будут загружены из API')
+
+  // ВСЕГДА загружаем ВСЕ данные из API (кэш полностью отключен)
+  const allDataPromise = Promise.all([
     loadZones(),
-    loadTables()
+    loadTables(),
+    loadCategories()
   ]).then(() => {
-    // Сохраняем dashboard timestamp после успешной загрузки зон и столиков
-    cacheService.set('_dashboard_cache_timestamp', new Date().toISOString(), { ttl: 60 * 60 * 1000 }) // 60 минут
-    console.log('Зоны и столики загружены, dashboard timestamp обновлен')
+    console.log('Основные данные загружены из API (кэш отключен)')
   }).catch(error => {
-    console.warn('Ошибка загрузки зон и столиков:', error)
+    console.warn('Ошибка загрузки основных данных:', error)
   })
 
-  // Если в кэше нет категорий, загружаем их сначала
-  if (apiCategories.value.length === 0) {
-    await loadCategories()
-  }
-
-  // Устанавливаем первую доступную категорию как активную
+  // Устанавливаем первую доступную категорию как активную после загрузки категорий
+  await loadCategories()
   if (combinedCategories.value.length > 0 && !activeCategory.value) {
     activeCategory.value = combinedCategories.value[0].id
   }
@@ -1895,7 +1741,11 @@ onMounted(async () => {
           console.log(`📅 Создан: ${activeOrder.created_at}`)
 
           // Если есть активный заказ, переводим в режим редактирования
-          if (activeOrder.status === 'in_progress' || activeOrder.status === 'pending') {
+          // Включаем все активные статусы заказа, кроме SERVED и COMPLETED
+          if (activeOrder.status === 'IN_PROGRESS' ||
+              activeOrder.status === 'PENDING' ||
+              activeOrder.status === 'READY' ||
+              activeOrder.status === 'DINING') {
             console.log(`🔄 Переводим в режим дозаказа для заказа #${activeOrder.id}`)
             await loadOrderForEdit(activeOrder.id)
           } else {
@@ -1914,20 +1764,14 @@ onMounted(async () => {
     openOrderTypeModal()
   }
 
-  // Ждём загрузки зон и столиков
-  await zonesAndTablesPromise
+  // Ждём загрузки всех основных данных
+  await allDataPromise
 
-  // Проверяем актуальность кэша и запускаем загрузку только при необходимости
-  const shouldUpdateCache = checkIfCacheNeedsUpdate()
-
-  if (shouldUpdateCache) {
-    console.log('Кэш устарел или отсутствует, запускаем фоновую загрузку...')
-    loadAllDataInitial().catch(error => {
-      console.warn('Ошибка фоновой загрузки всех данных:', error)
-    })
-  } else {
-    console.log('Кэш актуален, загрузка с сервера не требуется')
-  }
+  // ВСЕГДА запускаем полную загрузку всех данных (кэш отключен)
+  console.log('Кэш отключен, запускаем полную загрузку всех данных из API...')
+  loadAllDataInitial().catch(error => {
+    console.warn('Ошибка загрузки всех данных:', error)
+  })
 })
 
 onUnmounted(() => {
@@ -1974,18 +1818,18 @@ if (typeof window !== 'undefined') {
         notificationStore.addNotification({
           type: 'success',
           title: 'Данные обновлены',
-          message: 'Все данные принудительно обновлены из API',
+          message: 'Все данные принудительно загружены из API (кэш отключен)',
           read: false,
           sound: false
         })
       })
     },
     restoreFromCache: () => {
-      restoreFromCache()
+      console.log('Кэш отключен - восстановление невозможно')
       notificationStore.addNotification({
         type: 'info',
-        title: 'Данные восстановлены',
-        message: 'Данные восстановлены из кэша',
+        title: 'Кэш отключен',
+        message: 'Все данные загружаются только из API',
         read: false,
         sound: false
       })
@@ -1995,7 +1839,7 @@ if (typeof window !== 'undefined') {
         notificationStore.addNotification({
           type: 'success',
           title: 'Полная загрузка завершена',
-          message: 'Все данные загружены и сохранены в кэш',
+          message: 'Все данные загружены из API (кэш отключен)',
           read: false,
           sound: false
         })
@@ -2003,34 +1847,27 @@ if (typeof window !== 'undefined') {
     },
     // Добавляем функции для зон и столиков (совместимость с DashboardView)
     getCacheInfoZones: () => {
-      const locationsCache = cacheService.get('locations')
-      const tablesCache = cacheService.get('tables')
-      const dashboardTimestamp = cacheService.get('_dashboard_cache_timestamp')
-
-      console.log('Кэш зон и столиков (CreateOrderView):', {
-        locations: locationsCache ? 'Есть' : 'Отсутствует',
-        tables: tablesCache ? 'Есть' : 'Отсутствует',
-        dashboardTimestamp: dashboardTimestamp || 'Отсутствует',
-        zonesInMemory: zones.value.length,
-        tablesInMemory: availableTables.value.length
+      console.log('Кэш зон и столиков (CreateOrderView - кэш отключен):', {
+        note: 'Все данные всегда загружаются из API, кэш полностью отключен'
       })
     },
     clearZonesCache: () => {
-      cacheService.remove('locations')
-      cacheService.remove('tables')
-      cacheService.remove('_dashboard_cache_timestamp')
-      zones.value = []
-      availableTables.value = []
-      console.log('Кэш зон и столиков очищен')
+      console.log('Кэш полностью отключен - очистка не требуется')
     },
     forceReloadZones: () => {
       Promise.all([loadZones(), loadTables()]).then(() => {
-        cacheService.set('_dashboard_cache_timestamp', new Date().toISOString(), { ttl: 60 * 60 * 1000 })
-        console.log('Принудительная перезагрузка зон и столиков завершена')
+        notificationStore.addNotification({
+          type: 'success',
+          title: 'Зоны и столики обновлены',
+          message: 'Данные загружены из API (кэш отключен)',
+          read: false,
+          sound: false
+        })
       })
     }
   }
 
   console.log('QRes Debug доступен в window.qresDebug')
+  console.log('ВНИМАНИЕ: Кэш полностью отключен - все данные загружаются только из API')
 }
 </script>

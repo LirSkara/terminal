@@ -177,27 +177,29 @@ export interface Order {
 // === СТАТУСЫ ===
 
 export type OrderStatus =
-  | 'pending'      // Ожидает
-  | 'in_progress'  // В процессе
-  | 'ready'        // Готов
-  | 'served'       // Подан
-  | 'cancelled'    // Отменен
+  | 'PENDING'      // Ожидает
+  | 'IN_PROGRESS'  // В процессе
+  | 'READY'        // Готов
+  | 'SERVED'       // Подан
+  | 'DINING'       // Доедают
+  | 'COMPLETED'    // Завершен
+  | 'CANCELLED'    // Отменен
 
 export type PaymentStatus =
-  | 'unpaid'       // Не оплачен
-  | 'paid'         // Оплачен
-  | 'refunded'     // Возвращен
+  | 'UNPAID'       // Не оплачен
+  | 'PAID'         // Оплачен
+  | 'REFUNDED'     // Возвращен
 
 export type OrderType =
-  | 'dine_in'      // В зале
-  | 'takeaway'     // На вынос
-  | 'delivery'     // Доставка
+  | 'DINE_IN'      // В зале
+  | 'TAKEAWAY'     // На вынос
+  | 'DELIVERY'     // Доставка
 
 export type OrderItemStatus =
-  | 'in_preparation'    // Готовится (статус по умолчанию при создании, сразу видно на кухне)
-  | 'ready'             // Готова к подаче (повар подтверждает готовность)
-  | 'served'            // Подана клиенту (официант подтверждает выдачу)
-  | 'cancelled'         // Отменена
+  | 'IN_PREPARATION'    // Готовится (статус по умолчанию при создании, сразу видно на кухне)
+  | 'READY'             // Готова к подаче (повар подтверждает готовность)
+  | 'SERVED'            // Подана клиенту (официант подтверждает выдачу)
+  | 'CANCELLED'         // Отменена
 
 export type TableStatus =
   | 'free'         // Свободный
@@ -358,23 +360,25 @@ export interface ValidationErrorResponse {
 // === КОНСТАНТЫ ===
 
 export const ORDER_STATUSES: Record<OrderStatus, string> = {
-  pending: 'Ожидает',
-  in_progress: 'В процессе',
-  ready: 'Готов',
-  served: 'Подан',
-  cancelled: 'Отменен'
+  PENDING: 'Ожидает',
+  IN_PROGRESS: 'В процессе',
+  READY: 'Готов',
+  SERVED: 'Подан',
+  DINING: 'Доедают',
+  COMPLETED: 'Завершен',
+  CANCELLED: 'Отменен'
 }
 
 export const PAYMENT_STATUSES: Record<PaymentStatus, string> = {
-  unpaid: 'Не оплачен',
-  paid: 'Оплачен',
-  refunded: 'Возвращен'
+  UNPAID: 'Не оплачен',
+  PAID: 'Оплачен',
+  REFUNDED: 'Возвращен'
 }
 
 export const ORDER_TYPES: Record<OrderType, string> = {
-  dine_in: 'В зале',
-  takeaway: 'На вынос',
-  delivery: 'Доставка'
+  DINE_IN: 'В зале',
+  TAKEAWAY: 'На вынос',
+  DELIVERY: 'Доставка'
 }
 
 export const TABLE_STATUSES: Record<TableStatus, { label: string; color: string }> = {

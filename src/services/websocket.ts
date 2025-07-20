@@ -140,16 +140,16 @@ export class WebSocketService {
 
     // Определяем тип уведомления и нужность звука
     switch (new_status) {
-      case 'ready':
+      case 'READY':
         notificationType = 'success'
         shouldPlaySound = true
         break
-      case 'cancelled':
+      case 'CANCELLED':
         notificationType = 'warning'
         break
-      case 'confirmed':
-        notificationType = 'info'
-        break
+      // case 'CONFIRMED':
+      //   notificationType = 'info'
+      //   break
       default:
         notificationType = 'info'
     }
@@ -177,7 +177,7 @@ export class WebSocketService {
 
     const { status, dish_name } = message.data
 
-    if (status === 'ready') {
+    if (status === 'READY') {
       const notification: NotificationMessage = {
         id: `item_ready_${message.order_id}_${message.item_id}_${Date.now()}`,
         type: 'success',

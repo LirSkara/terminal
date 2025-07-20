@@ -369,7 +369,7 @@ class ApiService {
   }
 
   async updateOrderItemStatus(orderId: number, itemId: number, status: string): Promise<void> {
-    await this.api.patch(`/orders/${orderId}/items/${itemId}/status`, { status })
+    await this.api.patch(`/kitchen/items/${itemId}/status`, { status })
   }
 
   async deleteOrderItem(orderId: number, itemId: number): Promise<void> {
@@ -407,7 +407,10 @@ class ApiService {
 
             const activeOrder = allOrders.find(order => {
               const matches = order.table_id === tableId &&
-                            (order.status === 'pending' || order.status === 'in_progress')
+                            (order.status === 'PENDING' ||
+                             order.status === 'IN_PROGRESS' ||
+                             order.status === 'READY' ||
+                             order.status === 'DINING')
               if (order.table_id === tableId) {
                 console.log(`🔍 Заказ #${order.id} для столика ${tableId}: статус "${order.status}" (активный: ${matches})`)
               }
@@ -464,23 +467,23 @@ class ApiService {
       })
 
       // Проверяем, можно ли закрыть заказ
-      if (orderInfo.status === 'cancelled') {
+      if (orderInfo.status === 'CANCELLED') {
         throw new Error('Нельзя закрыть отмененный заказ')
       }
 
       // Переводим заказ в статус "подан", если еще не подан
-      if (orderInfo.status !== 'served') {
-        console.log(`Изменяем статус заказа ${orderId} на 'served'...`)
-        await this.updateOrderStatus(orderId, 'served')
-        console.log('✅ Статус заказа изменен на served')
+      if (orderInfo.status !== 'SERVED') {
+        console.log(`Изменяем статус заказа ${orderId} на 'SERVED'...`)
+        await this.updateOrderStatus(orderId, 'SERVED')
+        console.log('✅ Статус заказа изменен на SERVED')
       }
 
       // Устанавливаем статус оплаты "оплачен", если еще не оплачен
       let finalOrder = orderInfo
-      if (orderInfo.payment_status !== 'paid') {
-        console.log(`Изменяем статус оплаты заказа ${orderId} на 'paid'...`)
-        finalOrder = await this.updateOrderPayment(orderId, 'paid')
-        console.log('✅ Статус оплаты изменен на paid')
+      if (orderInfo.payment_status !== 'PAID') {
+        console.log(`Изменяем статус оплаты заказа ${orderId} на 'PAID'...`)
+        finalOrder = await this.updateOrderPayment(orderId, 'PAID')
+        console.log('✅ Статус оплаты изменен на PAID')
       }
 
       // Освобождаем столик

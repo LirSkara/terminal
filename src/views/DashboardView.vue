@@ -279,7 +279,7 @@
                 </button>
 
                 <button
-                  v-if="table.status === 'occupied' || table.status === 'qr-waiting' || table.status === 'dining'"
+                  v-if="(table.status === 'occupied' || table.status === 'qr-waiting' || table.status === 'dining') && canCloseOrder.get(table.id)"
                   @click="openCloseOrderModal(table)"
                   class="dashboard-action-btn dashboard-success"
                   title="Закрыть счет"
@@ -336,7 +336,13 @@
                   class="order-item"
                 >
                   <div class="order-item-info">
-                    <div class="order-item-name">{{ item.name }}</div>
+                    <div class="order-item-header">
+                      <div class="order-item-name">{{ item.name }}</div>
+                      <div :class="['order-item-status', `status-${item.status.toLowerCase()}`]">
+                        <i :class="getItemStatusIcon(item.status)"></i>
+                        {{ getItemStatusLabel(item.status) }}
+                      </div>
+                    </div>
                     <div class="order-item-category">{{ item.category }}</div>
                     <div class="order-item-unit-price">{{ item.unitPrice }}₽ за шт.</div>
                     <div v-if="item.notes" class="order-item-notes">
@@ -425,6 +431,7 @@ interface OrderItem {
   totalPrice: number // Общая стоимость позиции
   quantity: number
   category: string
+  status: 'IN_PREPARATION' | 'READY' | 'SERVED' | 'CANCELLED'
   notes?: string
 }
 
@@ -433,7 +440,7 @@ interface Order {
   tableNumber: string | number
   items: OrderItem[]
   total: number
-  status: 'active' | 'ready' | 'served' | 'cancelled'
+  status: 'ACTIVE' | 'READY' | 'SERVED' | 'CANCELLED'
   orderTime: Date
   waiterName: string
   notes?: string
@@ -489,6 +496,9 @@ const defaultPaymentMethods = [
   { id: 'mixed', name: 'Смешанная оплата', icon: 'bi-wallet2', isActive: true }
 ]
 
+// Мапа для отслеживания возможности закрытия заказов по столикам
+const canCloseOrder = ref<Map<number, boolean>>(new Map())
+
 // Зоны ресторана
 const zones = ref<Zone[]>([
   { id: 'all', name: 'Все зоны', color: '#6c757d' }
@@ -496,73 +506,6 @@ const zones = ref<Zone[]>([
 
 // Столики ресторана (загружаются из API)
 const tables = ref<Table[]>([])
-
-// Функция для проверки актуальности кэша зон
-const checkIfZonesCacheNeedsUpdate = () => {
-  try {
-    // Проверяем, есть ли кэш зон
-    const locationsCache = cacheService.get('locations')
-
-    if (!locationsCache) {
-      console.log('Кэш зон отсутствует')
-      return true
-    }
-
-    // Проверяем время последнего обновления зон
-    const cacheInfo = cacheService.get('_zones_cache_timestamp')
-    if (cacheInfo) {
-      const lastUpdate = new Date(cacheInfo as string)
-      const now = new Date()
-      const minutesSinceUpdate = (now.getTime() - lastUpdate.getTime()) / (1000 * 60)
-
-      // Обновляем кэш зон если прошло больше 60 минут (зоны меняются редко)
-      if (minutesSinceUpdate > 60) {
-        console.log(`Кэш зон устарел: ${minutesSinceUpdate.toFixed(1)} минут назад`)
-        return true
-      }
-    }
-
-    console.log('Кэш зон актуален')
-    return false
-
-  } catch (error) {
-    console.warn('Ошибка проверки кэша зон:', error)
-    return true // При ошибке лучше обновить
-  }
-}
-
-// Функция для восстановления зон из кэша
-const restoreZonesFromCache = () => {
-  console.log('Восстанавливаем зоны из кэша...')
-
-  try {
-    // Очищаем устаревший кэш столиков, если он есть
-    if (cacheService.get('tables')) {
-      console.log('Очищаем устаревший кэш столиков...')
-      cacheService.remove('tables')
-      cacheService.remove('_dashboard_cache_timestamp')
-    }
-
-    // Восстанавливаем только зоны
-    const locationsCache = cacheService.get('locations') as { locations: Location[] } | null
-    if (locationsCache && locationsCache.locations) {
-      const activeLocations = locationsCache.locations
-        .filter(location => location.is_active)
-        .sort((a, b) => a.name.localeCompare(b.name))
-
-      const apiZones = activeLocations.map(mapLocationToZone)
-      zones.value = [
-        { id: 'all', name: 'Все зоны', color: '#6c757d' },
-        ...apiZones
-      ]
-
-      console.log(`Восстановлено ${apiZones.length} зон из кэша`)
-    }
-
-  } catch (error) {
-    console.warn('Ошибка восстановления зон из кэша:', error)
-  }
-}
 
 // Функция для преобразования API Location в Zone
 const mapLocationToZone = (location: Location): Zone => {
@@ -696,7 +639,7 @@ const loadTables = async () => {
 const loadZones = async () => {
   try {
     isLoadingZones.value = true
-    console.log('Загрузка зон через API...')
+    console.log('Загрузка зон через API (кэш отключен)...')
 
     const response = await apiService.getLocations()
     console.log('Получены локации:', response)
@@ -711,8 +654,7 @@ const loadZones = async () => {
       locationsArray = []
     }
 
-    // Кэшируем данные локаций (зоны меняются редко)
-    cacheService.set('locations', { locations: locationsArray }, { ttl: 60 * 60 * 1000 }) // 60 минут
+    // НЕ кэшируем данные локаций - всегда загружаем свежие данные
 
     // Фильтруем только активные локации
     const filteredLocations = locationsArray
@@ -731,17 +673,14 @@ const loadZones = async () => {
       ...apiZones
     ]
 
-    console.log('Зоны загружены:', zones.value)
-
-    // Сохраняем timestamp успешной загрузки зон
-    cacheService.set('_zones_cache_timestamp', new Date().toISOString(), { ttl: 120 * 60 * 1000 }) // 120 минут
+    console.log('Зоны загружены из API:', zones.value)
 
     // Показываем уведомление об успешной загрузке
     if (apiZones.length > 0) {
       notificationStore.addNotification({
         type: 'success',
         title: 'Зоны загружены',
-        message: `Загружено ${apiZones.length} зон ресторана`,
+        message: `Загружено ${apiZones.length} зон ресторана из API`,
         read: false,
         sound: false
       })
@@ -784,8 +723,8 @@ const loadOrdersData = async () => {
 
     const ordersData = await Promise.all(orderPromises)
 
-    // Обновляем информацию о столиках
-    ordersData.forEach(({ table, order }) => {
+    // Проверяем возможность закрытия заказов и обновляем информацию о столиках
+    for (const { table, order } of ordersData) {
       if (order) {
         // Обновляем время заказа
         if (order.created_at) {
@@ -797,21 +736,27 @@ const loadOrdersData = async () => {
           table.orderAmount = order.total_price
         }
 
+        // Проверяем, можно ли закрыть заказ (все позиции поданы)
+        const canClose = await checkOrderCanBeClosed(order.id)
+        canCloseOrder.value.set(table.id, canClose)
+
         // Обновляем статус на основе статуса заказа
-        if (order.status === 'ready') {
+        if (order.status === 'READY') {
           table.status = 'ready'
-        } else if (order.status === 'served') {
+        } else if (order.status === 'SERVED') {
           // Если заказ подан, столик переходит в статус "доедают"
           table.status = 'dining'
-        } else if (order.payment_status === 'paid') {
+        } else if (order.payment_status === 'PAID') {
           // Только если заказ оплачен, столик освобождается
           table.status = 'free'
           table.current_order_id = null
           table.orderTime = null
           table.orderAmount = 0
+          // Удаляем информацию о возможности закрытия для освобожденного столика
+          canCloseOrder.value.delete(table.id)
         }
       }
-    })
+    }
 
     console.log('Данные о заказах загружены и применены к столикам')
 
@@ -822,7 +767,7 @@ const loadOrdersData = async () => {
 
 // Функция для полной загрузки данных дашборда
 const loadAllDashboardData = async () => {
-  console.log('Полная загрузка данных дашборда...')
+  console.log('Полная загрузка данных дашборда (кэш зон отключен)...')
 
   try {
     // Загружаем зоны, столики и способы оплаты параллельно
@@ -835,10 +780,7 @@ const loadAllDashboardData = async () => {
     // Загружаем данные о заказах для столиков (не кэшируем)
     await loadOrdersData()
 
-    // Сохраняем timestamp успешной загрузки зон
-    cacheService.set('_zones_cache_timestamp', new Date().toISOString(), { ttl: 120 * 60 * 1000 }) // 120 минут
-
-    console.log('Полная загрузка данных дашборда завершена')
+    console.log('Полная загрузка данных дашборда завершена (все данные из API)')
 
   } catch (error) {
     console.error('Ошибка полной загрузки данных дашборда:', error)
@@ -935,27 +877,27 @@ if (typeof window !== 'undefined') {
       const locationsCache = cacheService.get('locations')
       const timestamp = cacheService.get('_zones_cache_timestamp')
 
-      console.log('Кэш дашборда:', {
-        locations: locationsCache ? 'Есть' : 'Отсутствует',
-        timestamp: timestamp || 'Отсутствует',
+      console.log('Кэш дашборда (зоны загружаются только из API):', {
+        locations: locationsCache ? 'Есть (не используется)' : 'Отсутствует',
+        timestamp: timestamp || 'Отсутствует (не используется)',
         zonesInMemory: zones.value.length,
         tablesInMemory: tables.value.length,
-        paymentMethodsInMemory: paymentMethods.value.length
+        paymentMethodsInMemory: paymentMethods.value.length,
+        note: 'Зоны всегда загружаются из API, кэш отключен'
       })
     },
     clearCache: () => {
       cacheService.remove('locations')
       cacheService.remove('_zones_cache_timestamp')
-      console.log('Кэш зон очищен')
+      console.log('Кэш зон очищен (но зоны все равно загружаются из API)')
     },
     forceReload: () => {
       loadAllDashboardData().then(() => {
-        console.log('Принудительная перезагрузка данных дашборда завершена')
+        console.log('Принудительная перезагрузка данных дашборда завершена (все данные из API)')
       })
     },
     restoreFromCache: () => {
-      restoreZonesFromCache()
-      console.log('Зоны восстановлены из кэша')
+      console.log('Восстановление из кэша отключено - зоны всегда загружаются из API')
     },
     reloadPaymentMethods: () => {
       loadPaymentMethods().then(() => {
@@ -966,6 +908,7 @@ if (typeof window !== 'undefined') {
 
   console.log('Dashboard Debug доступен в window.qresDashDebug')
   console.log('Доступные функции отладки: debugZones(), debugTables(), debugPaymentMethods()')
+  console.log('ВНИМАНИЕ: Кэш зон отключен - зоны всегда загружаются из API')
 }
 
 // Обработчик ошибок API
@@ -1112,6 +1055,26 @@ const updateTime = () => {
     hour: '2-digit',
     minute: '2-digit'
   })
+}
+
+const getItemStatusIcon = (status: string) => {
+  const icons = {
+    IN_PREPARATION: 'bi-fire',
+    READY: 'bi-check-circle-fill',
+    SERVED: 'bi-check2-all',
+    CANCELLED: 'bi-x-circle-fill'
+  }
+  return icons[status as keyof typeof icons] || 'bi-question-circle'
+}
+
+const getItemStatusLabel = (status: string) => {
+  const labels = {
+    IN_PREPARATION: 'Готовится',
+    READY: 'Готово',
+    SERVED: 'Подано',
+    CANCELLED: 'Отменено'
+  }
+  return labels[status as keyof typeof labels] || status
 }
 
 const formatTime = (date: Date | null) => {
@@ -1289,6 +1252,10 @@ const loadDishCategories = async (order: Order | null) => {
       console.log(`  Найден API элемент:`, apiItem)
 
       if (apiItem) {
+        // Обновляем статус
+        item.status = (apiItem.status as 'IN_PREPARATION' | 'READY' | 'SERVED' | 'CANCELLED') || 'IN_PREPARATION'
+        console.log(`  📊 Установлен статус: ${item.status}`)
+
         // Обновляем категорию
         if (apiItem.dish_id) {
           console.log(`  dish_id элемента: ${apiItem.dish_id}`)
@@ -1323,28 +1290,31 @@ const loadDishCategories = async (order: Order | null) => {
         }
       } else {
         item.category = 'Неизвестная категория'
-        console.log(`  ❌ API элемент не найден, установлено: "Неизвестная категория"`)
+        item.status = 'IN_PREPARATION' // Устанавливаем статус по умолчанию
+        console.log(`  ❌ API элемент не найден, установлено: "Неизвестная категория", статус: "IN_PREPARATION"`)
       }
 
-      console.log(`  Итоговое состояние элемента: категория="${item.category}", цена=${item.unitPrice}₽, итого=${item.totalPrice}₽`)
+      console.log(`  Итоговое состояние элемента: категория="${item.category}", статус="${item.status}", цена=${item.unitPrice}₽, итого=${item.totalPrice}₽`)
     })
 
-    console.log('Категории блюд и цены загружены и обновлены')
+    console.log('Категории блюд, статусы и цены загружены и обновлены')
     console.log('Финальное состояние элементов заказа:', order.items.map(item => ({
       id: item.id,
       name: item.name,
       category: item.category,
+      status: item.status,
       unitPrice: item.unitPrice,
       totalPrice: item.totalPrice,
       quantity: item.quantity
     })))
 
   } catch (error) {
-    console.warn('Ошибка загрузки категорий блюд и цен:', error)
+    console.warn('Ошибка загрузки категорий блюд, статусов и цен:', error)
 
-    // В случае ошибки устанавливаем "Без категории" и нулевые цены
+    // В случае ошибки устанавливаем "Без категории", статус по умолчанию и нулевые цены
     order.items.forEach(item => {
       item.category = 'Без категории'
+      item.status = 'IN_PREPARATION'
       item.unitPrice = 0
       item.totalPrice = 0
     })
@@ -1359,9 +1329,31 @@ const serveOrder = async (table: Table) => {
     return
   }
 
+  const orderId = table.current_order_id // TypeScript теперь знает, что это number
+
   try {
+    // Сначала получаем детали заказа для обновления позиций
+    const orderData = await apiService.getOrder(orderId)
+    console.log('Загружены детали заказа для подачи:', orderData)
+
+    // Находим все готовые позиции (статус READY)
+    const readyItems = orderData.items?.filter(item => item.status === 'READY') || []
+    console.log('Найдено готовых позиций для подачи:', readyItems.length)
+
+    // Обновляем статус всех готовых позиций на SERVED
+    if (readyItems.length > 0) {
+      const updatePromises = readyItems
+        .filter(item => item.id !== undefined) // Фильтруем позиции с валидными ID
+        .map(item =>
+          apiService.updateOrderItemStatus(orderId, item.id!, 'SERVED')
+        )
+
+      await Promise.all(updatePromises)
+      console.log('Статусы готовых позиций обновлены на SERVED')
+    }
+
     // Обновляем статус заказа через API
-    await apiService.updateOrderStatus(table.current_order_id, 'served')
+    await apiService.updateOrderStatus(orderId, 'SERVED')
 
     // Обновляем статус столика для перехода в режим "доедают"
     // (столик занят, но заказ уже подан)
@@ -1371,19 +1363,23 @@ const serveOrder = async (table: Table) => {
     table.status = 'dining'
     // НЕ очищаем current_order_id - гости могут сделать дополнительный заказ
 
+    // Проверяем, можно ли теперь закрыть заказ (все позиции поданы)
+    const canClose = await checkOrderCanBeClosed(orderId)
+    canCloseOrder.value.set(table.id, canClose)
+
     // Показываем уведомление об успешной подаче
     notificationStore.addNotification({
       type: 'success',
       title: 'Заказ подан',
-      message: `Заказ столика ${table.number} подан гостям`,
+      message: `Заказ столика ${table.number} подан гостям (${readyItems.length} позиций)`,
       read: false,
       sound: true
     })
 
     playNotificationSound()
 
-    // Не обновляем данные столиков автоматически, чтобы не перезаписать статус
-    // await loadOrdersData()
+    // НЕ перезагружаем данные автоматически, чтобы не перезаписать статус
+    // Данные обновятся при следующем обновлении или через WebSocket
 
   } catch (error) {
     console.error('Ошибка подачи заказа:', error)
@@ -1432,7 +1428,7 @@ const confirmQrOrder = async (table: Table) => {
 
   try {
     // Обновляем статус заказа через API (подтверждаем QR заказ)
-    await apiService.updateOrderStatus(table.current_order_id, 'confirmed')
+    await apiService.updateOrderStatus(table.current_order_id, 'IN_PROGRESS')
 
     // Локально обновляем статус столика
     table.status = 'occupied'
@@ -1448,8 +1444,8 @@ const confirmQrOrder = async (table: Table) => {
 
     playNotificationSound()
 
-    // Не обновляем данные столиков автоматически, чтобы не перезаписать статус
-    // await loadOrdersData()
+    // НЕ перезагружаем данные автоматически, чтобы не перезаписать статус
+    // Данные обновятся при следующем обновлении или через WebSocket
 
   } catch (error) {
     console.error('Ошибка подтверждения QR заказа:', error)
@@ -1483,11 +1479,12 @@ const viewQrOrder = async (table: Table) => {
           totalPrice: Number(item.total) || 0,
           quantity: item.quantity || 1,
           category: 'Загружается...', // Будем загружать асинхронно
+          status: (item.status as 'IN_PREPARATION' | 'READY' | 'SERVED' | 'CANCELLED') || 'IN_PREPARATION',
           notes: item.comment || undefined
         }
       }) || [],
       total: orderData.total_price || table.orderAmount,
-      status: orderData.status === 'ready' ? 'ready' : 'active',
+      status: orderData.status === 'READY' ? 'READY' : 'ACTIVE',
       orderTime: orderData.created_at ? new Date(orderData.created_at) : (table.orderTime || new Date()),
       waiterName: orderData.waiter_name || waiterName.value,
       notes: orderData.notes || 'QR заказ. Требует подтверждения официанта'
@@ -1507,7 +1504,7 @@ const viewQrOrder = async (table: Table) => {
       tableNumber: table.number,
       items: [],
       total: table.orderAmount,
-      status: 'active',
+      status: 'ACTIVE',
       orderTime: table.orderTime || new Date(),
       waiterName: waiterName.value,
       notes: 'Ошибка загрузки данных заказа'
@@ -1548,11 +1545,12 @@ const viewOrder = async (table: Table) => {
           totalPrice: Number(item.total) || 0,
           quantity: item.quantity || 1,
           category: 'Загружается...', // Будем загружать асинхронно
+          status: (item.status as 'IN_PREPARATION' | 'READY' | 'SERVED' | 'CANCELLED') || 'IN_PREPARATION',
           notes: item.comment || undefined
         }
       }) || [],
       total: orderData.total_price || table.orderAmount,
-      status: table.status === 'ready' ? 'ready' : 'active',
+      status: table.status === 'ready' ? 'READY' : 'ACTIVE',
       orderTime: orderData.created_at ? new Date(orderData.created_at) : (table.orderTime || new Date()),
       waiterName: orderData.waiter_name || waiterName.value,
       notes: orderData.notes || undefined
@@ -1572,7 +1570,7 @@ const viewOrder = async (table: Table) => {
       tableNumber: table.number,
       items: [],
       total: table.orderAmount,
-      status: table.status === 'ready' ? 'ready' : 'active',
+      status: table.status === 'ready' ? 'READY' : 'ACTIVE',
       orderTime: table.orderTime || new Date(),
       waiterName: waiterName.value,
       notes: 'Ошибка загрузки данных заказа'
@@ -1584,6 +1582,37 @@ const viewOrder = async (table: Table) => {
 const closeOrderModal = () => {
   showOrderModal.value = false
   selectedOrder.value = null
+}
+
+// Функция для проверки, все ли позиции заказа поданы (имеют статус SERVED)
+const checkOrderCanBeClosed = async (orderId: number): Promise<boolean> => {
+  try {
+    console.log(`Проверяем возможность закрытия заказа ${orderId}...`)
+
+    const orderData: ApiOrder = await apiService.getOrder(orderId)
+
+    if (!orderData.items || orderData.items.length === 0) {
+      console.log('Заказ не содержит позиций')
+      return false
+    }
+
+    // Проверяем, есть ли позиции не в статусе SERVED
+    const unservedItems = orderData.items.filter(item => item.status !== 'SERVED')
+
+    console.log(`Заказ ${orderId}: всего позиций ${orderData.items.length}, не подано ${unservedItems.length}`)
+
+    if (unservedItems.length > 0) {
+      console.log('Позиции не поданы:', unservedItems.map(item => `${item.dish_name} (${item.status})`))
+      return false
+    }
+
+    console.log(`Все позиции заказа ${orderId} поданы`)
+    return true
+
+  } catch (error) {
+    console.error(`Ошибка проверки заказа ${orderId}:`, error)
+    return false
+  }
 }
 
 // Методы для модального окна закрытия заказа
@@ -1608,6 +1637,7 @@ const openCloseOrderModal = async (table: Table) => {
       totalPrice: Number(item.total) || 0,
       quantity: item.quantity || 1,
       category: 'Загружается...', // Будем загружать асинхронно
+      status: (item.status as 'IN_PREPARATION' | 'READY' | 'SERVED' | 'CANCELLED') || 'IN_PREPARATION',
       notes: item.comment || undefined
     })) || []
 
@@ -1687,18 +1717,22 @@ const onProcessOrderClosure = async (data: {
       sound: true
     })
 
-    // Находим столик и освобождаем его
+    // Находим столик и обновляем его статус локально
     const table = tables.value.find(t => t.number === closeOrderData.value?.tableNumber)
     if (table) {
-      await freeTable(table)
+      // Локально обновляем статус столика без дополнительных API вызовов
+      table.status = 'free'
+      table.is_occupied = false
+      table.current_order_id = null
+      table.orderTime = null
+      table.orderAmount = 0
     }
 
     // Закрываем модальное окно
     closeCloseOrderModal()
 
-    // Обновляем данные дашборда
-    await loadTables()
-    await loadOrdersData()
+    // НЕ перезагружаем данные сразу, чтобы не перезаписать статус
+    // Данные обновятся при следующем обновлении или через WebSocket
 
   } catch (error) {
     console.error('Ошибка закрытия заказа:', error)
@@ -1846,25 +1880,19 @@ onMounted(async () => {
   updateTime()
   timeInterval = setInterval(updateTime, 1000) as unknown as number
 
-  // Сначала восстанавливаем зоны из кэша для быстрого отображения
-  restoreZonesFromCache()
+  // ПРИНУДИТЕЛЬНО очищаем весь кэш зон перед загрузкой
+  console.log('Принудительная очистка кэша зон...')
+  cacheService.remove('locations')
+  cacheService.remove('_zones_cache_timestamp')
+  cacheService.remove('tables')
+  cacheService.remove('_dashboard_cache_timestamp')
 
   // Загружаем способы оплаты сразу (они не кэшируются)
   await loadPaymentMethods()
 
-  // Проверяем актуальность кэша зон и загружаем только при необходимости
-  const shouldUpdateZonesCache = checkIfZonesCacheNeedsUpdate()
-
-  if (shouldUpdateZonesCache) {
-    console.log('Кэш зон устарел или отсутствует, загружаем данные...')
-    await loadAllDashboardData()
-  } else {
-    console.log('Кэш зон актуален, загружаем только столики')
-    // Загружаем только столики (они не кэшируются)
-    await loadTables()
-    // Загружаем данные о заказах
-    await loadOrdersData()
-  }
+  // ВСЕГДА загружаем данные зон из API, не используем кэш
+  console.log('Загружаем все данные дашборда из API (кэш зон отключен)...')
+  await loadAllDashboardData()
 
   // Показываем отладочную информацию о зонах в режиме разработки
   if (import.meta.env.DEV) {
@@ -2013,6 +2041,79 @@ const loadPaymentMethods = async () => {
 // Первоначальная загрузка способов оплаты
 loadPaymentMethods()
 </script>
+
+<style scoped lang="scss">
+/* Стили для статусов позиций заказа */
+.order-item-header {
+  display: flex;
+  justify-content: space-between;
+  align-items: flex-start;
+  margin-bottom: 0.5rem;
+}
+
+.order-item-name {
+  font-weight: 600;
+  font-size: 1rem;
+  color: #2c3e50;
+  flex: 1;
+  margin-right: 1rem;
+}
+
+.order-item-status {
+  display: inline-flex;
+  align-items: center;
+  gap: 0.3rem;
+  padding: 0.25rem 0.5rem;
+  border-radius: 12px;
+  font-size: 0.75rem;
+  font-weight: 500;
+  white-space: nowrap;
+
+  &.status-in_preparation {
+    background-color: #fff3cd;
+    color: #856404;
+    border: 1px solid #ffeaa7;
+  }
+
+  &.status-ready {
+    background-color: #d4edda;
+    color: #155724;
+    border: 1px solid #c3e6cb;
+  }
+
+  &.status-served {
+    background-color: #d1ecf1;
+    color: #0c5460;
+    border: 1px solid #bee5eb;
+  }
+
+  &.status-cancelled {
+    background-color: #f8d7da;
+    color: #721c24;
+    border: 1px solid #f1aeb5;
+  }
+
+  i {
+    font-size: 0.75rem;
+  }
+}
+
+/* Адаптивность для мобильных устройств */
+@media (max-width: 768px) {
+  .order-item-header {
+    flex-direction: column;
+    gap: 0.5rem;
+  }
+
+  .order-item-name {
+    margin-right: 0;
+  }
+
+  .order-item-status {
+    align-self: flex-start;
+  }
+}
+</style>
 
 <style scoped lang="scss">
 @use '@/styles/views/dashboard';
