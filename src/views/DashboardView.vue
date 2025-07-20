@@ -13,6 +13,12 @@
               Смена: <span class="badge bg-success">Активна</span> •
               Время: {{ currentTime }} •
               Официант: {{ waiterName }}
+              <span v-if="isAutoUpdating" class="auto-update-indicator">
+                • <i class="bi bi-arrow-clockwise spin"></i> Обновление...
+              </span>
+              <span v-else-if="lastUpdateTime" class="last-update-time">
+                • Обновлено: {{ formatLastUpdateTime() }}
+              </span>
             </p>
           </div>
           <div class="col-md-4 text-end">
@@ -104,6 +110,15 @@
             <!-- Правая часть: быстрые действия -->
             <div class="col-lg-4 col-md-5">
               <div class="quick-actions-section">
+                <button
+                  @click="autoUpdateTables"
+                  :class="['quick-action-btn', 'refresh', { 'updating': isAutoUpdating }]"
+                  :disabled="isAutoUpdating"
+                  title="Обновить статусы столиков"
+                >
+                  <i :class="['bi', isAutoUpdating ? 'bi-arrow-clockwise spin' : 'bi-arrow-clockwise']"></i>
+                </button>
+
                 <button
                   @click="showAllReady"
                   :class="['quick-action-btn', 'ready', { 'pulse': readyOrders > 0 }]"
@@ -468,6 +483,8 @@ const activeFilter = ref('all')
 const activeZone = ref('all')
 const isLoadingZones = ref(false)
 const isLoadingTables = ref(false)
+const isAutoUpdating = ref(false)
+const lastUpdateTime = ref<Date | null>(null)
 
 // Модальное окно заказа
 const showOrderModal = ref(false)
@@ -762,6 +779,57 @@ const loadOrdersData = async () => {
 
   } catch (error) {
     console.error('Ошибка загрузки данных о заказах:', error)
+  }
+}
+
+// Функция автоматического обновления статусов столиков
+const autoUpdateTables = async () => {
+  try {
+    isAutoUpdating.value = true
+    console.log('🔄 Автоматическое обновление статусов столиков...')
+
+    // Сохраняем состояние готовых столиков перед обновлением
+    const previousReadyTables = tables.value
+      .filter(table => table.status === 'ready')
+      .map(table => table.id)
+
+    // Загружаем только данные о заказах, не перезагружаем столики
+    // (столики загружаются один раз при инициализации и редко меняются)
+    await loadOrdersData()
+
+    // Проверяем новые готовые заказы после обновления
+    const currentReadyTables = tables.value
+      .filter(table => table.status === 'ready')
+      .map(table => table.id)
+
+    // Находим новые готовые заказы
+    const newReadyTables = currentReadyTables.filter(id => !previousReadyTables.includes(id))
+
+    if (newReadyTables.length > 0) {
+      const newReadyTablesInfo = tables.value
+        .filter(table => newReadyTables.includes(table.id))
+        .map(table => `Столик ${table.number}`)
+        .join(', ')
+
+      console.log(`🔔 Новые готовые заказы: ${newReadyTablesInfo}`)
+
+      // Показываем уведомление о новых готовых заказах
+      notificationStore.addNotification({
+        type: 'success',
+        title: 'Заказ готов!',
+        message: `${newReadyTablesInfo} - заказ готов к подаче`,
+        read: false,
+        sound: true
+      })
+    }
+
+    lastUpdateTime.value = new Date()
+    console.log('✅ Автоматическое обновление завершено')
+
+  } catch (error) {
+    console.error('❌ Ошибка автоматического обновления:', error)
+  } finally {
+    isAutoUpdating.value = false
   }
 }
 
@@ -1090,6 +1158,21 @@ const formatTime = (date: Date | null) => {
   const diffHours = Math.floor(diffMins / 60)
   const remainingMins = diffMins % 60
   return remainingMins > 0 ? `${diffHours}ч ${remainingMins}м` : `${diffHours}ч`
+}
+
+// Функция форматирования времени последнего обновления
+const formatLastUpdateTime = () => {
+  if (!lastUpdateTime.value) return ''
+  const now = new Date()
+  const diffMs = now.getTime() - lastUpdateTime.value.getTime()
+  const diffSeconds = Math.floor(diffMs / 1000)
+
+  if (diffSeconds < 60) {
+    return `${diffSeconds}с назад`
+  }
+
+  const diffMins = Math.floor(diffSeconds / 60)
+  return `${diffMins}м назад`
 }
 
 const getTableIcon = (status: string) => {
@@ -1875,10 +1958,15 @@ const logout = async () => {
 
 // Таймер для обновления времени
 let timeInterval: number
+// Таймер для автоматического обновления статусов столиков
+let tablesUpdateInterval: number
 
 onMounted(async () => {
   updateTime()
   timeInterval = setInterval(updateTime, 1000) as unknown as number
+
+  // Автоматическое обновление статусов столиков каждые 10 секунд
+  tablesUpdateInterval = setInterval(autoUpdateTables, 10000) as unknown as number
 
   // ПРИНУДИТЕЛЬНО очищаем весь кэш зон перед загрузкой
   console.log('Принудительная очистка кэша зон...')
@@ -1907,6 +1995,9 @@ onMounted(async () => {
 onUnmounted(() => {
   if (timeInterval) {
     clearInterval(timeInterval)
+  }
+  if (tablesUpdateInterval) {
+    clearInterval(tablesUpdateInterval)
   }
 })
 
@@ -2111,6 +2202,53 @@ loadPaymentMethods()
 
   .order-item-status {
     align-self: flex-start;
+  }
+}
+
+/* Анимация для индикатора автоматического обновления */
+.auto-update-indicator {
+  color: #6c757d;
+  font-size: 0.9rem;
+
+  .spin {
+    animation: spin 1s linear infinite;
+  }
+}
+
+.last-update-time {
+  color: #6c757d;
+  font-size: 0.9rem;
+}
+
+@keyframes spin {
+  from {
+    transform: rotate(0deg);
+  }
+  to {
+    transform: rotate(360deg);
+  }
+}
+
+/* Стили для кнопки обновления */
+.quick-action-btn.refresh {
+  background-color: #e3f2fd;
+  color: #1976d2;
+  border: 1px solid #bbdefb;
+
+  &:hover:not(:disabled) {
+    background-color: #bbdefb;
+    color: #0d47a1;
+  }
+
+  &.updating {
+    background-color: #f3e5f5;
+    color: #7b1fa2;
+    cursor: not-allowed;
+  }
+
+  &:disabled {
+    opacity: 0.7;
+    cursor: not-allowed;
   }
 }
 </style>

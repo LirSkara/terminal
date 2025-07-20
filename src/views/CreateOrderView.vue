@@ -1570,27 +1570,49 @@ const loadDishesForCategory = async (categoryId: number) => {
     return
   }
 
-  // Проверяем, не загружены ли уже блюда для этой категории
-  if (apiDishes.value[categoryId]) {
-    return
-  }
+  // УДАЛЯЕМ проверку на уже загруженные блюда - всегда загружаем из API
+  // НЕ ПРОВЕРЯЕМ apiDishes.value[categoryId] - всегда обновляем данные
 
   try {
     loadingDishesForCategories.value.add(categoryId)
     isLoadingDishes.value = true
-    console.log(`Загрузка блюд для категории ${categoryId} через API (кэш отключен)...`)
+    console.log(`🔄 ПРИНУДИТЕЛЬНАЯ загрузка блюд для категории ${categoryId} напрямую из API...`)
 
-    const response = await apiService.getCategoryDishes(categoryId)
-    console.log('Получены блюда:', response)
+    // Принудительно очищаем старые данные перед загрузкой новых
+    delete apiDishes.value[categoryId]
+
+    // Очищаем вариации для всех блюд этой категории
+    Object.keys(dishVariations.value).forEach(dishId => {
+      const numDishId = parseInt(dishId)
+      if (!isNaN(numDishId)) {
+        delete dishVariations.value[numDishId]
+      }
+    })
+
+    const response = await apiService.getCategoryDishes(categoryId, { force: true })
+    console.log('✅ Получены свежие блюда из API (ПРИНУДИТЕЛЬНО БЕЗ КЭША):', response)
+
+    // ДЕТАЛЬНОЕ логирование каждого блюда
+    console.log('🔍 ДЕТАЛЬНАЯ ПРОВЕРКА БЛЮД:')
+    response.dishes.forEach((dish, index) => {
+      console.log(`  ${index + 1}. "${dish.name}" - ID: ${dish.id}, is_available: ${dish.is_available}, статус: ${dish.is_available ? '✅ АКТИВНО' : '❌ НЕАКТИВНО'}`)
+    })
 
     // НЕ кэшируем данные блюд - всегда загружаем свежие данные
 
     // Фильтруем только активные блюда и сортируем по sort_order
     const activeDishes = response.dishes
-      .filter(dish => dish.is_available)
+      .filter(dish => {
+        const isActive = dish.is_available
+        if (!isActive) {
+          console.log(`🚫 ИСКЛЮЧЕНО неактивное блюдо: "${dish.name}" (ID: ${dish.id})`)
+        }
+        return isActive
+      })
       .sort((a, b) => a.sort_order - b.sort_order || a.name.localeCompare(b.name))
 
-    console.log(`Отфильтровано ${activeDishes.length} доступных блюд для категории ${categoryId} из ${response.dishes.length}`)
+    console.log(`📊 РЕЗУЛЬТАТ ФИЛЬТРАЦИИ: отфильтровано ${activeDishes.length} доступных блюд для категории ${categoryId} из ${response.dishes.length}`)
+    console.log('✅ АКТИВНЫЕ БЛЮДА:', activeDishes.map(d => `"${d.name}" (ID: ${d.id})`).join(', '))
 
     // Устанавливаем блюда для категории
     apiDishes.value[categoryId] = activeDishes
@@ -1599,7 +1621,7 @@ const loadDishesForCategory = async (categoryId: number) => {
     console.log('Загрузка вариаций для блюд...')
     await Promise.all(activeDishes.map(async (dish) => {
       try {
-        const variationsResponse = await apiService.getDishVariations(dish.id)
+        const variationsResponse = await apiService.getDishVariations(dish.id, { force: true })
 
         // НЕ кэшируем данные вариаций - всегда загружаем свежие данные
 
@@ -1609,7 +1631,7 @@ const loadDishesForCategory = async (categoryId: number) => {
           .sort((a, b) => a.sort_order - b.sort_order || a.name.localeCompare(b.name))
 
         dishVariations.value[dish.id] = activeVariations
-        console.log(`Загружено ${activeVariations.length} вариаций для блюда "${dish.name}"`)
+        console.log(`Загружено ${activeVariations.length} вариаций для блюда "${dish.name}" (ПРИНУДИТЕЛЬНО БЕЗ КЭША)`)
       } catch (error) {
         console.warn(`Ошибка загрузки вариаций для блюда ${dish.id}:`, error)
         dishVariations.value[dish.id] = []
@@ -1661,8 +1683,9 @@ const handleApiError = (error: unknown, context: string) => {
 watch(activeCategory, async (newCategoryId) => {
   // Проверяем есть ли это в API категориях
   const apiCategory = apiCategories.value.find(cat => cat.id.toString() === newCategoryId)
-  if (apiCategory && !apiDishes.value[apiCategory.id]) {
-    // Если категория из API и блюда еще не загружены, загружаем их
+  if (apiCategory) {
+    // ВСЕГДА загружаем блюда при переключении категории (убираем проверку на уже загруженные)
+    console.log(`🔄 Переключение на категорию "${apiCategory.name}" - принудительная загрузка блюд из API`)
     await loadDishesForCategory(apiCategory.id)
   }
 })
@@ -1675,12 +1698,23 @@ onMounted(async () => {
   timeInterval = setInterval(updateTime, 1000) as unknown as number
 
   // ПРИНУДИТЕЛЬНО очищаем ВЕСЬ кэш перед загрузкой
-  console.log('Принудительная очистка всего кэша...')
+  console.log('🗑️ Принудительная очистка всего кэша включая блюда...')
   cacheService.remove('categories')
   cacheService.remove('locations')
   cacheService.remove('tables')
   cacheService.remove('_cache_timestamp')
   cacheService.remove('_dashboard_cache_timestamp')
+
+  // ОЧИЩАЕМ КЭШ БЛЮД - проходимся по всем возможным ID категорий
+  console.log('🗑️ Очищаем кэш блюд для всех категорий...')
+  for (let i = 1; i <= 100; i++) {
+    cacheService.remove(`dishes_${i}`)
+    cacheService.remove(`dish_variations_${i}`)
+  }
+
+  // Альтернативный способ - очищаем весь кэш
+  console.log('🗑️ Полная очистка всего кэша приложения...')
+  cacheService.clear()
 
   // НЕ восстанавливаем данные из кэша - кэш полностью отключен
   console.log('Кэш отключен - все данные будут загружены из API')
@@ -1864,6 +1898,80 @@ if (typeof window !== 'undefined') {
           sound: false
         })
       })
+    },
+    // Функции для принудительного обновления блюд
+    forceReloadDishes: async () => {
+      console.log('🔄 Принудительное обновление всех блюд из API БЕЗ КЭША...')
+
+      // Очищаем все данные блюд и вариаций
+      apiDishes.value = {}
+      dishVariations.value = {}
+
+      // Принудительно очищаем кэш блюд в API сервисе
+      apiCategories.value.forEach(category => {
+        console.log(`🗑️ Очищаем кэш для категории ${category.id}`)
+        cacheService.remove(`dishes_${category.id}`)
+      })
+
+      // Перезагружаем блюда для всех категорий БЕЗ КЭША
+      const promises = apiCategories.value.map(category =>
+        loadDishesForCategory(category.id).catch(error =>
+          console.warn(`Ошибка загрузки категории ${category.id}:`, error)
+        )
+      )
+
+      await Promise.all(promises)
+
+      notificationStore.addNotification({
+        type: 'success',
+        title: 'Блюда обновлены',
+        message: 'Все блюда принудительно загружены из API БЕЗ КЭША',
+        read: false,
+        sound: false
+      })
+    },
+    clearDishesCache: () => {
+      console.log('🗑️ Очистка данных блюд в памяти...')
+      apiDishes.value = {}
+      dishVariations.value = {}
+
+      notificationStore.addNotification({
+        type: 'info',
+        title: 'Данные блюд очищены',
+        message: 'Блюда будут загружены заново при следующем обращении',
+        read: false,
+        sound: false
+      })
+    },
+
+    // Функция для тестирования статуса конкретного блюда
+    checkDishStatus: async (dishId: number) => {
+      try {
+        console.log(`🔍 Проверяем статус блюда ID ${dishId} напрямую через API...`)
+
+        // Здесь нужно найти категорию блюда или загрузить все блюда
+        let foundDish = null
+
+        for (const categoryId of Object.keys(apiDishes.value)) {
+          const dishes = apiDishes.value[parseInt(categoryId)]
+          foundDish = dishes.find(d => d.id === dishId)
+          if (foundDish) break
+        }
+
+        if (foundDish) {
+          console.log(`✅ Блюдо найдено в локальных данных: "${foundDish.name}", статус: ${foundDish.is_available ? 'АКТИВНО' : 'НЕАКТИВНО'}`)
+        } else {
+          console.log(`❌ Блюдо ID ${dishId} не найдено в загруженных данных`)
+        }
+
+        // Принудительно перезагружаем данные для всех категорий
+        console.log('🔄 Принудительно перезагружаем все блюда...')
+        // @ts-expect-error - отладочная функция добавляется глобально
+        await window.qresDebug.forceReloadDishes()
+
+      } catch (error) {
+        console.error('Ошибка проверки статуса блюда:', error)
+      }
     }
   }
 
