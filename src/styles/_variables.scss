@@ -108,15 +108,31 @@ $qres-white: #ffffff;
 $qres-light: #f8f9fa;
 $qres-dark: #2c3e50;
 
-// Брейкпоинты
-$qres-breakpoints: (
-  xs: 0,
-  sm: 576px,
-  md: 768px,
-  lg: 992px,
-  xl: 1200px,
-  xxl: 1400px
-);
+// === МЕДИА-ЗАПРОСЫ ===
+// Простые брейкпоинты без SASS карт
+@mixin mobile {
+  @media (max-width: 767px) {
+    @content;
+  }
+}
+
+@mixin tablet {
+  @media (min-width: 768px) and (max-width: 991px) {
+    @content;
+  }
+}
+
+@mixin desktop {
+  @media (min-width: 992px) {
+    @content;
+  }
+}
+
+@mixin large-desktop {
+  @media (min-width: 1200px) {
+    @content;
+  }
+}
 
 // === МИКСИНЫ ===
 @mixin qres-glass-effect($opacity: 0.95) {
@@ -148,25 +164,21 @@ $qres-breakpoints: (
 }
 
 @mixin qres-pulse-animation($color) {
-  animation: qres-pulse-#{string.slice(meta.inspect($color), 2)} 2s infinite;
+  animation: qres-pulse 2s infinite;
+}
 
-  @keyframes qres-pulse-#{string.slice(meta.inspect($color), 2)} {
-    0%, 100% {
-      box-shadow: 0 0 0 0 rgba($color, 0.7);
-    }
-    50% {
-      box-shadow: 0 0 0 10px rgba($color, 0);
-    }
+@keyframes qres-pulse {
+  0%, 100% {
+    transform: scale(1);
+    opacity: 1;
+  }
+  50% {
+    transform: scale(1.05);
+    opacity: 0.8;
   }
 }
 
-@mixin qres-responsive($breakpoint) {
-  @if map.has-key($qres-breakpoints, $breakpoint) {
-    @media (min-width: map.get($qres-breakpoints, $breakpoint)) {
-      @content;
-    }
-  }
-}
+
 
 @mixin custom-scrollbar($width: 8px, $track-color: var(--qres-gray-100), $thumb-color: var(--qres-gray-400)) {
   &::-webkit-scrollbar {

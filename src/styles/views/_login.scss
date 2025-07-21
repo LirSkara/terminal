@@ -43,7 +43,7 @@
   text-align: center;
   margin-right: 3rem;
 
-  @include variables.qres-responsive(lg) {
+  @include variables.desktop {
     display: block;
   }
 
