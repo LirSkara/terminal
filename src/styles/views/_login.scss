@@ -2,8 +2,8 @@
 // QRes OS 4 - Стили страницы входа
 // ==========================================
 
-@use '../variables';
-@use '../components/common';
+@use '../_variables';
+@use '../components/_common';
 
 .login-page {
   height: 100vh;
