@@ -1,0 +1,158 @@
+// ==========================================
+// QRes OS 4 - Упрощенные общие компоненты
+// ==========================================
+
+@use '../variables' as *;
+
+// === КНОПКИ ===
+.qres-btn {
+  padding: 0.75rem 1.5rem;
+  border-radius: var(--qres-radius-md);
+  font-weight: 600;
+  font-size: 1rem;
+  transition: all var(--qres-transition-normal);
+  cursor: pointer;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  gap: 0.5rem;
+  border: none;
+
+  &:disabled {
+    opacity: 0.6;
+    cursor: not-allowed;
+    transform: none !important;
+  }
+
+  // Размеры
+  &-sm {
+    padding: 0.5rem 1rem;
+    font-size: 0.875rem;
+  }
+
+  &-lg {
+    padding: 1rem 2rem;
+    font-size: 1.125rem;
+  }
+
+  &-xl {
+    padding: 1.25rem 2.5rem;
+    font-size: 1.25rem;
+  }
+
+  // Варианты - упрощенные без миксинов
+  &-primary {
+    background: linear-gradient(135deg, var(--qres-primary) 0%, var(--qres-primary-dark) 100%);
+    color: white;
+
+    &:hover:not(:disabled) {
+      transform: translateY(-2px);
+      box-shadow: var(--qres-shadow-lg);
+    }
+
+    &:active:not(:disabled) {
+      transform: translateY(0);
+    }
+  }
+
+  &-success {
+    background: linear-gradient(135deg, var(--qres-success) 0%, var(--qres-success-light) 100%);
+    color: white;
+
+    &:hover:not(:disabled) {
+      transform: translateY(-2px);
+      box-shadow: var(--qres-shadow-lg);
+    }
+  }
+
+  &-warning {
+    background: linear-gradient(135deg, var(--qres-warning) 0%, var(--qres-warning-light) 100%);
+    color: white;
+
+    &:hover:not(:disabled) {
+      transform: translateY(-2px);
+      box-shadow: var(--qres-shadow-lg);
+    }
+  }
+
+  &-danger {
+    background: linear-gradient(135deg, var(--qres-danger) 0%, var(--qres-danger-light) 100%);
+    color: white;
+
+    &:hover:not(:disabled) {
+      transform: translateY(-2px);
+      box-shadow: var(--qres-shadow-lg);
+    }
+  }
+
+  &-info {
+    background: linear-gradient(135deg, var(--qres-info) 0%, var(--qres-info-light) 100%);
+    color: white;
+
+    &:hover:not(:disabled) {
+      transform: translateY(-2px);
+      box-shadow: var(--qres-shadow-lg);
+    }
+  }
+
+  &-outline {
+    background: transparent;
+    color: var(--qres-gray-700);
+    border: 2px solid var(--qres-gray-300);
+
+    &:hover:not(:disabled) {
+      background: var(--qres-gray-100);
+      border-color: var(--qres-gray-400);
+    }
+  }
+}
+
+// === КАРТОЧКИ ===
+.qres-card {
+  background: var(--qres-white);
+  border-radius: var(--qres-radius-lg);
+  box-shadow: var(--qres-shadow-md);
+  padding: 1.5rem;
+  transition: all var(--qres-transition-normal);
+
+  &:hover {
+    transform: translateY(-4px);
+    box-shadow: var(--qres-shadow-lg);
+  }
+}
+
+// === ЛОАДЕР ===
+.app-loader {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  min-height: 200px;
+
+  .spinner-border {
+    width: 3rem;
+    height: 3rem;
+    color: var(--qres-primary);
+  }
+}
+
+// === НАВБАР ===
+.app-navbar {
+  background: var(--qres-white);
+  box-shadow: var(--qres-shadow-sm);
+  border-bottom: 1px solid var(--qres-gray-200);
+}
+
+// === СТАТУСЫ ПОДКЛЮЧЕНИЯ ===
+.connection-status {
+  &.connected {
+    color: var(--qres-success);
+  }
+
+  &.disconnected {
+    color: var(--qres-danger);
+  }
+
+  &.connecting {
+    color: var(--qres-warning);
+  }
+}

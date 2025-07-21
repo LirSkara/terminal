@@ -2,8 +2,7 @@
 // QRes OS 4 - Общие компоненты
 // ==========================================
 
-@use 'sass:color';
-@use '../variables';
+@use '../variables' as *;
 
 // === КНОПКИ ===
 .qres-btn {
@@ -43,23 +42,57 @@
 
   // Варианты
   &-primary {
-    @include variables.qres-button-gradient(variables.$qres-primary, variables.$qres-primary-dark);
+    background: linear-gradient(135deg, var(--qres-primary) 0%, var(--qres-primary-dark) 100%);
+    color: white;
+
+    &:hover:not(:disabled) {
+      transform: translateY(-2px);
+      box-shadow: var(--qres-shadow-lg);
+    }
+
+    &:active:not(:disabled) {
+      transform: translateY(0);
+    }
   }
 
   &-success {
-    @include variables.qres-button-gradient(variables.$qres-success, color.adjust(variables.$qres-success, $lightness: 10%));
+    background: linear-gradient(135deg, var(--qres-success) 0%, var(--qres-success-light) 100%);
+    color: white;
+
+    &:hover:not(:disabled) {
+      transform: translateY(-2px);
+      box-shadow: var(--qres-shadow-lg);
+    }
   }
 
   &-warning {
-    @include variables.qres-button-gradient(variables.$qres-warning, color.adjust(variables.$qres-warning, $lightness: 10%));
+    background: linear-gradient(135deg, var(--qres-warning) 0%, var(--qres-warning-light) 100%);
+    color: white;
+
+    &:hover:not(:disabled) {
+      transform: translateY(-2px);
+      box-shadow: var(--qres-shadow-lg);
+    }
   }
 
   &-danger {
-    @include variables.qres-button-gradient(variables.$qres-danger, color.adjust(variables.$qres-danger, $lightness: -10%));
+    background: linear-gradient(135deg, var(--qres-danger) 0%, var(--qres-danger-light) 100%);
+    color: white;
+
+    &:hover:not(:disabled) {
+      transform: translateY(-2px);
+      box-shadow: var(--qres-shadow-lg);
+    }
   }
 
   &-info {
-    @include variables.qres-button-gradient(variables.$qres-info, color.adjust(variables.$qres-info, $lightness: 10%));
+    background: linear-gradient(135deg, var(--qres-info) 0%, var(--qres-info-light) 100%);
+    color: white;
+
+    &:hover:not(:disabled) {
+      transform: translateY(-2px);
+      box-shadow: var(--qres-shadow-lg);
+    }
   }
 
   &-outline {
@@ -86,11 +119,18 @@
 
 // === КАРТОЧКИ ===
 .qres-card {
-  @include variables.qres-glass-effect();
+  background: rgba(255, 255, 255, 0.25);
+  backdrop-filter: blur(10px);
+  border: 1px solid rgba(255, 255, 255, 0.18);
   border-radius: var(--qres-radius-lg);
-  padding: var(--qres-card-padding);
+  padding: 1.5rem;
   box-shadow: var(--qres-shadow-md);
-  @include variables.qres-card-hover();
+  transition: all var(--qres-transition-normal);
+
+  &:hover {
+    transform: translateY(-4px);
+    box-shadow: var(--qres-shadow-lg);
+  }
 
   &-header {
     margin-bottom: 1.5rem;
@@ -219,7 +259,9 @@
   backdrop-filter: blur(5px);
 
   &-dialog {
-    @include variables.qres-glass-effect();
+    background: rgba(255, 255, 255, 0.95);
+    backdrop-filter: blur(10px);
+    border: 1px solid rgba(255, 255, 255, 0.18);
     border-radius: var(--qres-radius-xl);
     max-width: 90vw;
     max-height: 90vh;
@@ -290,25 +332,25 @@
   &-success {
     background: rgba(39, 174, 96, 0.1);
     border-color: var(--qres-success);
-    color: color.adjust(variables.$qres-success, $lightness: -20%);
+    color: #1e7e34;
   }
 
   &-warning {
     background: rgba(243, 156, 18, 0.1);
     border-color: var(--qres-warning);
-    color: color.adjust(variables.$qres-warning, $lightness: -20%);
+    color: #b8860b;
   }
 
   &-danger {
     background: rgba(231, 76, 60, 0.1);
     border-color: var(--qres-danger);
-    color: color.adjust(variables.$qres-danger, $lightness: -20%);
+    color: #a71e2a;
   }
 
   &-info {
     background: rgba(52, 152, 219, 0.1);
     border-color: var(--qres-info);
-    color: color.adjust(variables.$qres-info, $lightness: -20%);
+    color: #1f5582;
   }
 }
 
