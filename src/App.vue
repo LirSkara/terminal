@@ -23,6 +23,9 @@
         <RouterView />
       </main>
     </template>
+
+    <!-- PWA уведомления -->
+    <PWAPrompt />
   </div>
 </template>
 
@@ -31,6 +34,7 @@ import { onMounted, ref, watch } from 'vue'
 import { RouterView, useRoute } from 'vue-router'
 import { useAuthStore } from '@/stores/auth'
 import { useNotificationStore } from '@/stores/notifications'
+import PWAPrompt from '@/components/common/PWAPrompt.vue'
 
 const authStore = useAuthStore()
 const notificationStore = useNotificationStore()
