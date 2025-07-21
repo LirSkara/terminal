@@ -21,5 +21,12 @@ export default defineConfig({
         silenceDeprecations: ['legacy-js-api']
       }
     }
+  },
+  optimizeDeps: {
+    force: true
+  },
+  server: {
+    host: '0.0.0.0',
+    port: 5173
   }
 })
