@@ -2,8 +2,8 @@
 // QRes OS 4 - Стили панели управления
 // ==========================================
 
-@use '../_variables';
-@use '../components/_common';
+@use '../variables' as *;
+@use '../components/common';
 
 // === ОСНОВНОЙ КОНТЕЙНЕР ===
 .dashboard-view {
@@ -14,7 +14,7 @@
 
 // === ЗАГОЛОВОК ДАШБОРДА ===
 .dashboard-header {
-  @include variables.qres-glass-effect();
+  @include qres-glass-effect();
   border-radius: var(--qres-radius-xl);
   margin: 1rem;
   padding: 2rem;
@@ -146,7 +146,7 @@
     background: var(--qres-gradient-warning);
 
     &.pulse {
-      @include variables.qres-pulse-animation(var(--qres-warning));
+      @include qres-pulse-animation(var(--qres-warning));
     }
   }
 
@@ -154,7 +154,7 @@
     background: var(--qres-gradient-danger);
 
     &.pulse {
-      @include variables.qres-pulse-animation(var(--qres-danger));
+      @include qres-pulse-animation(var(--qres-danger));
     }
   }
 
@@ -211,7 +211,7 @@
 
 // === ОБЪЕДИНЕННАЯ ПАНЕЛЬ УПРАВЛЕНИЯ ===
 .unified-controls {
-  @include variables.qres-glass-effect();
+  @include qres-glass-effect();
   border-radius: var(--qres-radius-xl);
   padding: 1rem 1.5rem;
   box-shadow: var(--qres-shadow-md);
@@ -294,7 +294,7 @@
   padding: 0.5rem 0.75rem;
   border-radius: var(--qres-radius-lg);
   border: 2px solid transparent;
-  @include variables.qres-glass-effect(0.8);
+  @include qres-glass-effect(0.8);
   display: flex;
   align-items: center;
   justify-content: center;
@@ -386,7 +386,7 @@
   height: 64px;
   border-radius: var(--qres-radius-md);
   border: 2px solid transparent;
-  @include variables.qres-glass-effect(0.8);
+  @include qres-glass-effect(0.8);
   display: flex;
   flex-direction: column;
   align-items: center;
@@ -444,7 +444,7 @@
 
 // === КАРТОЧКИ СТОЛИКОВ ===
 .dashboard-table-card {
-  @include variables.qres-glass-effect();
+  @include qres-glass-effect();
   border-radius: var(--qres-radius-xl);
   border: 2px solid transparent;
   box-shadow: var(--qres-shadow-md);
@@ -459,7 +459,7 @@
   }
 
   &.dashboard-table-pulse {
-    @include variables.qres-pulse-animation(var(--qres-warning));
+    @include qres-pulse-animation(var(--qres-warning));
   }
 }
 
@@ -497,12 +497,12 @@
 
   .dashboard-table-status-qr-waiting & {
     background: linear-gradient(45deg, #9b59b6, #e74c3c);
-    @include variables.qres-pulse-animation(#9b59b6);
+    @include qres-pulse-animation(#9b59b6);
   }
 
   .dashboard-table-status-ready & {
     background: var(--qres-gradient-warning);
-    @include variables.qres-pulse-animation(var(--qres-warning));
+    @include qres-pulse-animation(var(--qres-warning));
   }
 
   .dashboard-table-status-dining & {
@@ -755,7 +755,7 @@
 }
 
 .order-modal {
-  @include variables.qres-glass-effect();
+  @include qres-glass-effect();
   border-radius: var(--qres-radius-xl);
   box-shadow: var(--qres-shadow-xl);
   width: 100%;
@@ -847,7 +847,7 @@
   display: flex;
   align-items: center;
   padding: 1rem;
-  @include variables.qres-glass-effect(0.8);
+  @include qres-glass-effect(0.8);
   border-radius: var(--qres-radius-md);
   border: 1px solid rgba(0, 0, 0, 0.05);
   transition: all var(--qres-transition-normal);
@@ -906,7 +906,7 @@
 
 .order-notes {
   padding: 1rem;
-  @include variables.qres-glass-effect(0.8);
+  @include qres-glass-effect(0.8);
   border-radius: var(--qres-radius-md);
   border-left: 4px solid var(--qres-warning);
   font-style: italic;
@@ -1162,7 +1162,7 @@
     overflow-y: auto;
     padding: 0 1.5rem 1rem; // Уменьшили отступы
 
-    @include variables.custom-scrollbar(6px, var(--qres-gray-100), var(--qres-primary-300));
+    @include custom-scrollbar(6px, var(--qres-gray-100), var(--qres-primary-300));
   }
 }
 

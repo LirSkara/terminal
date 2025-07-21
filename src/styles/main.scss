@@ -3,15 +3,15 @@
 // ==========================================
 
 // === ПЕРЕМЕННЫЕ И МИКСИНЫ ===
-@use '_variables' as *;
+@use 'variables' as *;
 
 // === ОБЩИЕ КОМПОНЕНТЫ ===
-@use 'components/_common';
+@use 'components/common';
 
 // === СТИЛИ ПРЕДСТАВЛЕНИЙ ===
-@use 'views/_login';
-@use 'views/_dashboard';
-@use 'views/_create-order';
+@use 'views/login';
+@use 'views/dashboard';
+@use 'views/create-order';
 
 // === ГЛОБАЛЬНЫЕ СТИЛИ ===
 :root {

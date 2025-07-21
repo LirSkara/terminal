@@ -2,8 +2,8 @@
 // QRes OS 4 - Стили страницы входа
 // ==========================================
 
-@use '../_variables';
-@use '../components/_common';
+@use '../variables' as *;
+@use '../components/common';
 
 .login-page {
   height: 100vh;
@@ -43,7 +43,7 @@
   text-align: center;
   margin-right: 3rem;
 
-  @include variables.desktop {
+  @include desktop {
     display: block;
   }
 
@@ -97,7 +97,7 @@
   align-items: center;
   text-align: left;
   padding: 1rem;
-  @include variables.qres-glass-effect(0.1);
+  @include qres-glass-effect(0.1);
   border-radius: var(--qres-radius-md);
   backdrop-filter: blur(10px);
 }
@@ -177,7 +177,7 @@
     i {
       color: var(--qres-success);
       font-size: 1.1em;
-      @include variables.qres-pulse-animation(var(--qres-success));
+      @include qres-pulse-animation(var(--qres-success));
     }
   }
 
@@ -189,7 +189,7 @@
     i {
       color: var(--qres-danger);
       font-size: 1.1em;
-      @include variables.qres-pulse-animation(var(--qres-danger));
+      @include qres-pulse-animation(var(--qres-danger));
     }
   }
 
@@ -236,7 +236,7 @@
   z-index: 2;
   width: 100%;
   max-width: 450px;
-  @include variables.qres-glass-effect();
+  @include qres-glass-effect();
   border-radius: var(--qres-radius-xl);
   padding: 2.5rem;
   box-shadow: var(--qres-shadow-xl);
