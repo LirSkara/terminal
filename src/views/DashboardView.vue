@@ -1470,37 +1470,6 @@ const serveOrder = async (table: Table) => {
   }
 }
 
-const freeTable = async (table: Table) => {
-  console.log('Освобождение столика:', table.number)
-
-  try {
-    // Обновляем статус столика на сервере (освобождаем)
-    await apiService.updateTableStatus(table.id, false)
-
-    // Локально обновляем статус столика
-    table.status = 'free'
-    table.is_occupied = false
-    table.current_order_id = null
-    table.orderTime = null
-    table.orderAmount = 0
-
-    // Показываем уведомление об успешном освобождении
-    notificationStore.addNotification({
-      type: 'success',
-      title: 'Столик освобожден',
-      message: `Столик ${table.number} освобожден и готов к приему новых гостей`,
-      read: false,
-      sound: true
-    })
-
-    playNotificationSound()
-
-  } catch (error) {
-    console.error('Ошибка освобождения столика:', error)
-    handleApiError(error, 'освобождения столика')
-  }
-}
-
 const confirmQrOrder = async (table: Table) => {
   console.log('Подтвердить QR заказ столика:', table.number)
 

@@ -254,7 +254,7 @@ import { useAuthStore } from '@/stores/auth'
 import { useNotificationStore } from '@/stores/notifications'
 import { apiService } from '@/services/api'
 import { cacheService } from '@/services/cache'
-import type { Location, Dish as ApiDish, DishVariation as ApiDishVariation } from '@/types/api'
+import type { Location } from '@/types/api'
 import DishModal from '@/components/modals/DishModal.vue'
 import OrderTypeModal from '@/components/modals/OrderTypeModal.vue'
 import OrderConfirmModal from '@/components/modals/OrderConfirmModal.vue'
@@ -1261,13 +1261,6 @@ const loadOrderForEdit = async (orderId: number) => {
   }
 }
 
-// Функция для проверки актуальности кэша
-const checkIfCacheNeedsUpdate = () => {
-  // Кэш полностью отключен - всегда требуется обновление
-  console.log('Кэш отключен - всегда загружаем данные из API')
-  return true
-}
-
 // Функция для полной загрузки всех данных при первом входе
 const loadAllDataInitial = async () => {
   console.log('Начинаем полную загрузку всех данных (кэш отключен)...')
@@ -1335,25 +1328,6 @@ const loadAllDataInitial = async () => {
       sound: true
     })
   }
-}
-
-// Функция для восстановления данных из кэша при инициализации
-const restoreFromCache = () => {
-  console.log('НЕ восстанавливаем данные из кэша - кэш для категорий и блюд отключен')
-
-  // НЕ восстанавливаем категории из кэша - всегда загружаем из API
-  console.log('Категории не восстанавливаются из кэша - будут загружены из API')
-
-  // НЕ восстанавливаем блюда из кэша - всегда загружаем из API
-  console.log('Блюда не восстанавливаются из кэша - будут загружены из API')
-
-  // НЕ восстанавливаем зоны из кэша - всегда загружаем из API
-  console.log('Зоны не восстанавливаются из кэша - будут загружены из API')
-
-  // НЕ восстанавливаем столики из кэша - всегда загружаем из API
-  console.log('Столики не восстанавливаются из кэша - будут загружены из API')
-
-  console.log('Все данные будут загружены из API (кэш полностью отключен)')
 }
 
 // Функция для преобразования API Location в Zone

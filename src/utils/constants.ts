@@ -25,36 +25,38 @@ export const tableStatusColors: Record<TableStatus, string> = {
 
 // Названия статусов заказов
 export const orderStatusNames: Record<OrderStatus, string> = {
-  pending: 'Ожидает подтверждения',
-  confirmed: 'Подтвержден кухней',
-  in_progress: 'Готовится',
-  ready: 'Готов к подаче',
-  served: 'Подан клиенту',
-  cancelled: 'Отменен'
+  PENDING: 'Ожидает подтверждения',
+  IN_PROGRESS: 'Готовится',
+  READY: 'Готов к подаче',
+  SERVED: 'Подан клиенту',
+  DINING: 'Доедают',
+  COMPLETED: 'Завершен',
+  CANCELLED: 'Отменен'
 }
 
 // Названия статусов оплаты
 export const paymentStatusNames: Record<PaymentStatus, string> = {
-  unpaid: 'Не оплачен',
-  paid: 'Оплачен',
-  partial: 'Частично оплачен'
+  UNPAID: 'Не оплачен',
+  PAID: 'Оплачен',
+  REFUNDED: 'Возвращен'
 }
 
 // Цвета для статусов заказов
 export const orderStatusColors: Record<OrderStatus, string> = {
-  pending: colors.warning,
-  confirmed: colors.primary,
-  in_progress: colors.primary,
-  ready: colors.success,
-  served: colors.free,
-  cancelled: colors.danger
+  PENDING: colors.warning,
+  IN_PROGRESS: colors.primary,
+  READY: colors.success,
+  SERVED: colors.free,
+  DINING: colors.background,
+  COMPLETED: colors.free,
+  CANCELLED: colors.danger
 }
 
 // Цвета для статусов оплаты
 export const paymentStatusColors: Record<PaymentStatus, string> = {
-  unpaid: colors.danger,
-  paid: colors.success,
-  partial: colors.warning
+  UNPAID: colors.danger,
+  PAID: colors.success,
+  REFUNDED: colors.warning
 }
 
 // Breakpoints для адаптивности
@@ -97,36 +99,36 @@ export const icons = {
   error: 'bi-exclamation-triangle-fill',
   warning: 'bi-exclamation-circle-fill',
   info: 'bi-info-circle-fill',
-  
+
   // Навигация
   home: 'bi-house-fill',
   back: 'bi-arrow-left',
   close: 'bi-x-lg',
   menu: 'bi-list',
-  
+
   // Пользователь
   user: 'bi-person-fill',
   logout: 'bi-box-arrow-right',
   login: 'bi-box-arrow-in-right',
-  
+
   // Столики
   table: 'bi-table',
   qrCode: 'bi-qr-code',
-  
+
   // Заказы
   order: 'bi-receipt',
   cart: 'bi-cart-fill',
   plus: 'bi-plus-lg',
   minus: 'bi-dash-lg',
-  
+
   // Еда
   dish: 'bi-egg-fried',
   category: 'bi-collection-fill',
-  
+
   // Оплата
   payment: 'bi-credit-card-fill',
   cash: 'bi-currency-dollar',
-  
+
   // Статусы
   pending: 'bi-clock-fill',
   confirmed: 'bi-check-lg',
@@ -134,16 +136,16 @@ export const icons = {
   ready: 'bi-bell-fill',
   served: 'bi-check2-all',
   cancelled: 'bi-x-circle-fill',
-  
+
   // Уведомления
   notification: 'bi-bell-fill',
   sound: 'bi-volume-up-fill',
-  
+
   // Редактирование
   edit: 'bi-pencil-fill',
   delete: 'bi-trash-fill',
   save: 'bi-check-lg',
-  
+
   // Прочее
   search: 'bi-search',
   filter: 'bi-filter',

@@ -1,8 +1,38 @@
 import { defineStore } from 'pinia'
 import { ref, computed } from 'vue'
 import { apiService } from '@/services/api'
-import type { Order, CreateOrderRequest, OrderStatus, OrderItemStatus } from '@/types/api'
+import type { Order, OrderItem, CreateOrderRequest, OrderStatus, OrderItemStatus, OrderWithDetails, OrderItemWithDish } from '@/types/api'
 import { extractErrorMessage } from '@/utils/format'
+
+// Функция для преобразования OrderWithDetails в Order
+const convertOrderWithDetailsToOrder = (orderWithDetails: OrderWithDetails): Order => {
+  return {
+    id: orderWithDetails.id,
+    table_id: orderWithDetails.table_id,
+    waiter_id: orderWithDetails.waiter_id,
+    status: orderWithDetails.status,
+    payment_status: orderWithDetails.payment_status,
+    order_type: orderWithDetails.order_type,
+    total_price: parseFloat(orderWithDetails.total_price),
+    notes: orderWithDetails.notes,
+    kitchen_notes: orderWithDetails.kitchen_notes,
+    created_at: orderWithDetails.created_at,
+    table_number: orderWithDetails.table_number,
+    waiter_name: orderWithDetails.waiter_name,
+    items: orderWithDetails.items.map((item: OrderItemWithDish): OrderItem => ({
+      id: item.id,
+      dish_id: item.dish_id,
+      dish_variation_id: item.dish_variation_id ?? null, // undefined -> null
+      quantity: item.quantity,
+      price: parseFloat(item.price),
+      total: parseFloat(item.total),
+      comment: item.comment,
+      status: item.status,
+      dish_name: item.dish_name,
+      variation_name: undefined // Может понадобиться добавить в OrderItemWithDish
+    }))
+  }
+}
 
 export const useOrderStore = defineStore('orders', () => {
   // Состояние
@@ -14,20 +44,20 @@ export const useOrderStore = defineStore('orders', () => {
   // Геттеры
   const activeOrders = computed(() =>
     orders.value.filter(order =>
-      order.status !== 'served' && order.status !== 'cancelled'
+      order.status !== 'SERVED' && order.status !== 'CANCELLED'
     )
   )
 
   const readyOrders = computed(() =>
-    orders.value.filter(order => order.status === 'ready')
+    orders.value.filter(order => order.status === 'READY')
   )
 
   const pendingOrders = computed(() =>
-    orders.value.filter(order => order.status === 'pending')
+    orders.value.filter(order => order.status === 'PENDING')
   )
 
   const inProgressOrders = computed(() =>
-    orders.value.filter(order => order.status === 'in_progress')
+    orders.value.filter(order => order.status === 'IN_PROGRESS')
   )
 
   const todayOrders = computed(() => {
@@ -72,9 +102,13 @@ export const useOrderStore = defineStore('orders', () => {
       error.value = null
 
       const newOrder = await apiService.createOrder(orderData)
-      orders.value.unshift(newOrder)
 
-      return newOrder
+      // Преобразуем OrderWithDetails в Order для локального стора
+      const orderForStore = convertOrderWithDetailsToOrder(newOrder)
+
+      orders.value.unshift(orderForStore)
+
+      return orderForStore
     } catch (err: unknown) {
       const errorMessage = err instanceof Error ? err.message : 'Ошибка создания заказа'
       error.value = errorMessage
@@ -172,11 +206,11 @@ export const useOrderStore = defineStore('orders', () => {
       // Обновляем локальное состояние
       const index = orders.value.findIndex(o => o.id === orderId)
       if (index !== -1) {
-        orders.value[index].status = 'cancelled'
+        orders.value[index].status = 'CANCELLED'
       }
 
       if (currentOrder.value?.id === orderId) {
-        currentOrder.value.status = 'cancelled'
+        currentOrder.value.status = 'CANCELLED'
       }
     } catch (err) {
       error.value = extractErrorMessage(err)
@@ -311,8 +345,8 @@ export const useOrderStore = defineStore('orders', () => {
   const getActiveOrderForTable = (tableId: number): Order | null => {
     return orders.value.find(order =>
       order.table_id === tableId &&
-      order.status !== 'served' &&
-      order.status !== 'cancelled'
+      order.status !== 'SERVED' &&
+      order.status !== 'CANCELLED'
     ) || null
   }
 
